@@ -1,0 +1,1016 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="description" content="Mapa interactivo de apertura y contención espacial en Barrio Puerto, Valparaíso, construido a partir de 15 encuestas." />
+  <title>Apertura / Contención — Barrio Puerto</title>
+  <!-- Estilos originales integrados para que no desaparezca la interfaz -->
+  <style>
+:root {
+  --papel: #ffffff;
+  --tinta: #000000;
+  --gris: #6e7072;
+  --apertura: #11b9ff;
+  --contencion: #ff2c92;
+}
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+body { background: var(--papel); color: var(--tinta); font-family: Arial, Helvetica, sans-serif; -webkit-font-smoothing: antialiased; }
+button { font: inherit; }
+.visor { position: relative; overflow: hidden; width: 100%; height: 100svh; min-height: 320px; background: var(--papel); isolation: isolate; }
+.mapa { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.mapa.arrastrando { cursor: grabbing; }
+.zona { mix-blend-mode: multiply; }
+.zona-halo, .zona-tinta { pointer-events: none; }
+.zona-tinta { transition: opacity 160ms ease; }
+.zona-interaccion { pointer-events: visiblePainted; cursor: crosshair; outline: none; }
+.zona:has(.zona-interaccion:hover) .zona-tinta,
+.zona:has(.zona-interaccion:focus-visible) .zona-tinta { opacity: .96; }
+.etiqueta { font-size: 14px; letter-spacing: 1.7px; font-weight: 750; fill: #17191a; stroke: none; stroke-width: 0; paint-order: normal; stroke-linejoin: round; pointer-events: none; }
+.controles { position: absolute; z-index: 8; top: 24px; left: 24px; display: grid; gap: 1px; background: #d1d1d1; border: 1px solid #d1d1d1; box-shadow: 0 2px 14px #0000000a; }
+.control { display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; background: #fff; border: none; color: #171717; font-size: 23px; font-weight: 400; cursor: pointer; transition: background 120ms ease; }
+.control:hover:not(:disabled) { background: #f0f0f0; }
+.control:focus-visible { outline: 2px solid #161719; outline-offset: -3px; }
+.control:disabled { color: #b6b6b6; cursor: default; }
+.control-restaurar svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
+.leyenda { position: absolute; z-index: 8; right: 25px; bottom: 25px; width: min(300px, calc(100vw - 44px)); background: #fff; border: 1px solid #d9d9d9; padding: 22px 23px 18px; box-shadow: 0 3px 22px #0000000c; }
+.leyenda-titulo { display: flex; justify-content: space-between; align-items: center; font-size: 11px; letter-spacing: .2em; font-weight: 800; }
+.leyenda-titulo span { font-weight: 500; letter-spacing: .07em; color: #8b8b8b; }
+.leyenda-linea { background: #292929; height: 1px; margin: 13px 0 18px; }
+.leyenda-linea.tenue { background: #e4e4e4; margin: 18px 0 13px; }
+.leyenda-elemento { display: flex; align-items: center; gap: 11px; font-size: 12px; letter-spacing: .01em; margin: 12px 0; }
+.muestra { display: block; width: 23px; height: 16px; flex-shrink: 0; }
+.muestra.apertura { background: var(--apertura); }
+.muestra.contencion { background: var(--contencion); }
+.muestra.mezcla { background: #9b73e6; }
+.leyenda-escala { display: flex; justify-content: space-between; gap: 10px; font-size: 8px; letter-spacing: .1em; color: #656565; }
+.escala-color { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0 13px; }
+.escala-color span { height: 9px; background: linear-gradient(90deg, #e5f7ff, var(--apertura)); }
+.escala-color span + span { background: linear-gradient(90deg, #ffe4f1, var(--contencion)); }
+.leyenda-nota { font-size: 10.5px; line-height: 1.55; margin: 0; color: #5d6063; }
+.leyenda-pie { display: flex; align-items: center; gap: 9px; margin: 19px 0 0; padding-top: 11px; border-top: 1px solid #ececec; font-size: 9px; font-weight: 700; color: #7a7a7a; letter-spacing: .15em; }
+.leyenda-pie span { font-size: 15px; font-weight: 400; line-height: .6; }
+.detalle { position: absolute; z-index: 10; background: #fff; width: 216px; border: 1px solid #242424; padding: 13px; box-shadow: 0 7px 28px #00000021; pointer-events: none; }
+.detalle[hidden] { display: none; }
+.detalle-encabezado { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 15px; font-size: 12px; font-weight: 700; line-height: 1.3; }
+.detalle-cerrar { flex-shrink: 0; color: #9a9a9a; }
+.detalle-barra { display: flex; width: 100%; height: 9px; background: #eee; overflow: hidden; }
+#barra-apertura { background: var(--apertura); }
+#barra-contencion { background: var(--contencion); }
+.detalle-cifras { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 9.5px; color: #4f5154; }
+.detalle-cifras b { color: #171717; font-size: 12px; }
+.detalle-explicacion { margin: 11px 0 0; padding-top: 9px; border-top: 1px solid #eaeaea; font-size: 10.5px; line-height: 1.55; color: #4f5154; }
+.resaltado-zona { pointer-events: none; }
+.resaltado-zona.activo { filter: brightness(1.06); }
+.instruccion { position: absolute; z-index: 3; bottom: 26px; left: 24px; font-size: 9px; font-weight: 700; color: #7f8284; letter-spacing: .19em; user-select: none; pointer-events: none; }
+.solo-lectores { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@media (max-width: 650px) {
+  .controles { top: 13px; left: 13px; }
+  .control { width: 37px; height: 37px; }
+  .leyenda { right: 12px; bottom: 12px; width: min(257px, calc(100vw - 24px)); padding: 15px 16px 13px; }
+  .leyenda-elemento { margin: 9px 0; }
+  .leyenda-linea { margin: 10px 0 14px; }
+  .leyenda-linea.tenue { margin: 12px 0 10px; }
+  .leyenda-nota { font-size: 10px; }
+  .leyenda-pie { margin-top: 10px; }
+  .instruccion { left: 13px; bottom: 13px; font-size: 7px; max-width: 68px; line-height: 1.6; }
+}
+
+/* TRAZOS OBTENIDOS DE LA GEOMETRÍA DE LA IMAGEN DE REFERENCIA */
+#cartografia { pointer-events:none; }
+.trazo-aereo {
+  fill:none; stroke:#111; stroke-width:1.45;
+  stroke-linejoin:round; stroke-linecap:round; opacity:.90;
+}
+.trazo-detalle {
+  fill:none; stroke:#111; stroke-width:.85;
+  stroke-linejoin:round; stroke-linecap:round; opacity:.64;
+}
+.trazo-borde { fill:none;stroke:#090909;stroke-width:2;stroke-linejoin:round; }
+.contorno-monumento { fill:none;stroke:#050505;stroke-width:2.6;stroke-linejoin:round; }
+/* Las zonas de opinión son capas de tinta, no edificios dibujados */
+.zona { mix-blend-mode:multiply; }
+.etiqueta { font-size:12px; letter-spacing:1.4px; }
+/* Fondo blanco a toda la ventana, incluso al mover el SVG */
+body,html,.visor,.mapa {background:#fff;}
+.visor {width:100vw;height:100dvh;min-height:0;}
+.mapa {width:100vw;height:100%;}
+@media (max-width:650px) {
+ .etiqueta {font-size:14px;}
+ .leyenda {background:#fff;}
+}
+
+/* ==========================================
+   ACABADO EDITORIAL: CARTOGRAFÍA Y TINTAS
+   Trazos arquitectónicos muy finos sobre blanco.
+   Color bajo la cartografía.
+========================================== */
+#cartografia {pointer-events:none;}
+.trazo-aereo {fill:none;stroke:#111;stroke-width:1.05;stroke-linejoin:round;stroke-linecap:round;opacity:.87;}
+.trazo-detalle {fill:none;stroke:#191919;stroke-width:.60;stroke-linejoin:round;stroke-linecap:round;opacity:.47;}
+.trazo-borde {fill:none;stroke:#090909;stroke-width:1.35;opacity:.83;}
+.contorno-monumento {fill:none;stroke:#151515;stroke-width:1.65;}
+.campo-fluido {pointer-events:none;}
+.zona-interactiva {pointer-events:none;}
+.zona-interaccion {pointer-events:visiblePainted;cursor:crosshair;}
+.etiqueta {font-size:12px;letter-spacing:1.45px;font-weight:700;stroke:none;stroke-width:0;paint-order:normal;}
+.muestra.mezcla {background:linear-gradient(90deg,#11b9ff,#9b73e6,#ff2c92);}
+.leyenda {background:#fff;}
+
+/* RED ORGÁNICA: CONTORNOS DEFINIDOS Y UNIONES SUAVES */
+.red-organica {pointer-events:none; opacity:.92;}
+.trazo-organico, .ramificacion {fill:none; stroke-linecap:round; stroke-linejoin:round;}
+.nudo-organico {stroke:none;}
+/* Deja visibles los contornos negros del mapa sobre la red cromática */
+.trazo-aereo {stroke:#111;stroke-width:1.05;opacity:.82;}
+.trazo-detalle {stroke:#171717;stroke-width:.62;opacity:.48;}
+/* No utilizar filtros de desenfoque ni mezclas multiplicadas */
+#capas-color {isolation:isolate;}
+
+/* SOLO OCHO LUGARES · TRAMOS ORGÁNICOS DE GROSOR VARIABLE */
+.red-organica { opacity:.92; mix-blend-mode:multiply; pointer-events:none; }
+.cinta-urbana {stroke:none; pointer-events:none;}
+/* Cartografía de apoyo, discreta respecto de los datos. */
+.trazo-aereo { stroke:#111;stroke-width:1.15; opacity:.57; }
+.trazo-detalle { stroke:#282828;stroke-width:.72; opacity:.24; }
+.trazo-borde {opacity:.50;}
+.contorno-monumento {opacity:.60;}
+.leyenda {box-shadow:0 7px 25px rgba(0,0,0,.07);}
+
+/* Resaltado nuevo: la única capa visual sustituida. */
+.resaltado-mapa, .resaltado-enfoque { pointer-events: none; }
+.resaltado-enfoque { opacity: 0; transition: opacity 160ms ease; }
+.resaltado-enfoque.activo { opacity: .22; }
+
+  /* Etiquetas sin contorno blanco y sin halo */
+#etiquetas .etiqueta { stroke: none !important; stroke-width: 0 !important; paint-order: normal; }
+</style>
+</head>
+<body>
+  <main id="visor" class="visor" aria-label="Visualización de percepción de amplitud espacial en Barrio Puerto, Valparaíso">
+    <svg id="mapa" class="mapa" viewBox="0 0 1319 1193" preserveAspectRatio="xMidYMid slice"
+      role="img" aria-label="Mapa en blanco y negro de Barrio Puerto, con una sola superficie de degradados azul, rosado y violeta que representa las respuestas de ocho lugares">
+      <defs>
+        <!-- Ramas orgánicas de anchura variable generadas directamente en SVG. -->
+      </defs>
+      <!-- Mapa vectorial dibujado íntegramente con código SVG. Sin fotografías ni imágenes -->
+      <rect width="1319" height="1193" fill="#ffffff" />
+      <g id="capas-color" aria-hidden="true"></g>
+      <g id="cartografia" aria-hidden="true"></g>
+      <g id="etiquetas" aria-hidden="true"></g>
+    </svg>
+
+    <nav class="controles" aria-label="Controles del mapa">
+      <button class="control" id="acercar" aria-label="Acercar mapa" title="Acercar">+</button>
+      <button class="control" id="alejar" aria-label="Alejar mapa" title="Alejar">−</button>
+      <button class="control control-restaurar" id="reiniciar" aria-label="Ver toda la zona" title="Ver toda la zona">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10V4h6M20 14v6h-6M20 10V4h-6M4 14v6h6" /></svg>
+      </button>
+    </nav>
+
+    <aside class="leyenda" aria-label="Simbología de colores">
+      <div class="leyenda-titulo">SIMBOLOGÍA <span>01 — 08</span></div>
+      <div class="leyenda-linea"></div>
+      <div class="leyenda-elemento"><i class="muestra apertura"></i><span>Apertura</span></div>
+      <div class="leyenda-elemento"><i class="muestra contencion"></i><span>Contención</span></div>
+      <div class="leyenda-elemento"><i class="muestra mezcla"></i><span>Percepción compartida</span></div>
+      <div class="leyenda-linea tenue"></div>
+      <div class="leyenda-escala">
+        <span>MENOR INTENSIDAD</span><span>MAYOR INTENSIDAD</span>
+      </div>
+      <div class="escala-color" aria-hidden="true"><span></span><span></span></div>
+      <p class="leyenda-nota">Cada sector representa el porcentaje de apertura y contención de sus 15 respuestas. La división entre lugares es aproximada; los bordes del resaltado se desvanecen. Pasa el mouse por una calle o sector para levantar volúmenes fijos según ese tramo. En calles aparecen a ambos lados; en plazas y muelle siguen solo los bordes edificados. La altura representa la contención percibida, no la altura real de las construcciones.</p>
+      <p class="leyenda-pie">15 ENCUESTAS <span>·</span> 8 ESPACIOS</p>
+    </aside>
+
+    <div id="detalle" class="detalle" role="status" aria-live="polite" hidden>
+      <div class="detalle-encabezado"><span id="detalle-lugar"></span><span class="detalle-cerrar" aria-hidden="true">↗</span></div>
+      <div class="detalle-barra" aria-hidden="true"><span id="barra-apertura"></span><span id="barra-contencion"></span></div>
+      <div class="detalle-cifras"><span><b id="valor-apertura">0%</b> apertura</span><span><b id="valor-contencion">0%</b> contención</span></div>
+      <p class="detalle-explicacion" id="detalle-explicacion"></p>
+    </div>
+
+    <div class="instruccion" aria-hidden="true">DESPLAZAR · ZOOM</div>
+    <p class="solo-lectores">Desplaza el mapa arrastrándolo. Acerca o aleja con la rueda, los botones + y −, o el gesto de pellizcar. Selecciona un área coloreada para consultar las respuestas.</p>
+  </main>
+
+  <script>
+    "use strict";
+    // Datos: 15 registros de «Percepción de Amplitud del Espacio — Hoja 1».
+    // Una clasificación por persona y lugar: apertura + contención = 15.
+    // d define contornos aproximados sobre la cartografía vectorial dibujada en código.
+    // Para afinar una zona, edita sus coordenadas SVG a continuación.
+    const espacios = [
+      {
+        id:'echaurren', nombre:'Plaza Echaurren', apertura:10, contencion:5,
+        tipo:'area',
+        // Vacío real junto a la calle y los árboles: NO edificio.
+        d:'M 70 165 L 110 142 L 179 113 L 248 122 L 283 166 L 281 233 L 222 264 L 154 296 L 106 294 L 69 248 Z',
+        // Los levantamientos siguen el borde urbano del lado edificado, no un anillo circular.
+        guias:[
+          { lado:-1, puntos:[[245,131],[274,166],[272,222],[227,253],[166,283]], min:8, max:14, separacion:8 }
+        ],
+        etiqueta:{x:122,y:131,texto:'PLAZA ECHAURREN'}
+      },
+      {
+        id:'serrano', nombre:'Calle Serrano', apertura:0, contencion:15,
+        tipo:'calle', ancho:18,
+        d:'M 245 266 C 270 339 293 423 324 503 C 348 579 382 671 419 763 L 467 876',
+        etiqueta:{x:311,y:453,texto:'SERRANO',rotar:69}
+      },
+      {
+        id:'cochrane', nombre:'Calle Cochrane', apertura:2, contencion:13,
+        tipo:'calle', ancho:19,
+        d:'M 360 205 C 389 302 411 398 438 472 C 464 546 505 644 537 714 L 625 870',
+        etiqueta:{x:466,y:534,texto:'COCHRANE',rotar:69}
+      },
+      {
+        id:'blanco', nombre:'Calle Blanco', apertura:0, contencion:15,
+        tipo:'calle', ancho:19,
+        d:'M 485 140 C 512 234 544 354 585 468 C 620 572 667 694 713 807',
+        etiqueta:{x:557,y:351,texto:'BLANCO',rotar:71}
+      },
+      {
+        id:'errazuriz', nombre:'Avenida Errázuriz', apertura:6, contencion:9,
+        tipo:'calle', ancho:43,
+        d:'M 635 -36 C 651 120 682 269 721 400 C 759 532 808 652 851 738',
+        etiqueta:{x:718,y:350,texto:'AV. ERRÁZURIZ',rotar:72}
+      },
+      {
+        id:'muelle', nombre:'Muelle Prat', apertura:15, contencion:0,
+        tipo:'area',
+        // Explanada junto a los embarcaderos (no cubre el mar completo).
+        d:'M 1017 470 L 1091 492 L 1169 542 L 1223 578 L 1280 620 L 1307 657 L 1271 720 L 1192 700 L 1118 655 L 1053 606 L 1009 541 Z',
+        // Solo el borde urbano: no aparecen volúmenes del lado del mar.
+        guias:[
+          { lado:1, puntos:[[1016,535],[1051,575],[1111,622],[1188,670],[1267,705]], min:10, max:18, separacion:9 }
+        ],
+        etiqueta:{x:1112,y:464,texto:'MUELLE PRAT'}
+      },
+      {
+        id:'sotomayor', nombre:'Plaza Sotomayor', apertura:12, contencion:3,
+        tipo:'area',
+        // Gran espacio pavimentado abierto al costado del monumento.
+        d:'M 502 945 L 552 909 L 635 894 L 725 886 L 771 934 L 760 1007 L 716 1068 L 615 1120 L 551 1091 L 502 1017 Z',
+        // Borde edificado del perímetro, en tramos rectos y esquinas más cuadradas.
+        guias:[
+          { lado:-1, puntos:[[731,905],[752,944],[748,1000],[709,1057],[621,1106],[557,1083]], min:10, max:18, separacion:10 }
+        ],
+        etiqueta:{x:548,y:1086,texto:'PLAZA SOTOMAYOR'}
+      },
+      {
+        id:'monumento', nombre:'Monumento a los Héroes de Iquique', apertura:9, contencion:6,
+        tipo:'area',
+        // Plataforma peatonal real, separada de los edificios.
+        d:'M 786 818 L 844 799 L 878 827 L 899 872 L 845 911 L 792 895 L 775 854 Z',
+        // Sigue el marco del monumento con caras rectas, evitando una distribución circular.
+        guias:[
+          { lado:-1, puntos:[[790,852],[803,823],[843,810],[878,831],[890,870],[847,901],[801,889]], min:6, max:12, separacion:7 }
+        ],
+        etiqueta:{x:834,y:782,texto:'HÉROES DE IQUIQUE',centrado:true}
+      }
+    ];
+
+    const SVG = 'http://www.w3.org/2000/svg';
+    const svg = document.getElementById('mapa');
+    const colores = document.getElementById('capas-color');
+    const etiquetas = document.getElementById('etiquetas');
+    const visor = document.getElementById('visor');
+    const detalle = document.getElementById('detalle');
+    const total = 15;
+    const mundo = { ancho: 1319, alto: 1193 };
+    const azul = [17, 185, 255];
+    const rosa = [255, 44, 146];
+
+    function elementoSVG(nombre, atributos = {}) {
+      const el = document.createElementNS(SVG, nombre);
+      Object.entries(atributos).forEach(([clave, valor]) => el.setAttribute(clave, String(valor)));
+      return el;
+    }
+    function colorDe(espacio) {
+      const t = espacio.contencion / (espacio.apertura + espacio.contencion);
+      return `rgb(${azul.map((c, i) => Math.round(c * (1 - t) + rosa[i] * t)).join(',')})`;
+    }
+
+    /* =============================================================
+       CARTOGRAFÍA TRAZADA SOBRE LA IMAGEN AÉREA ORIGINAL (1319x1193)
+       Cada trazo es un path SVG real: no se carga ninguna fotografía.
+       A diferencia de la versión anterior, no se inventan manzanas.
+       El trazado sigue las cubiertas, calles, muelle y espacios vacíos
+       de la imagen adjunta. Base referencial, no levantamiento topográfico.
+       ============================================================= */
+    const plano = document.getElementById('cartografia');
+    const grandes = document.createElementNS(SVG, 'path');
+    grandes.setAttribute('class','trazo-aereo');
+    grandes.setAttribute('d', `M850 517 l38 67 l10 10 l36 67 l7 -1 l92 -50 l4 -15 l-37 -40 l1 -4 l39 40 l7 -2 l10 11 l7 -6 l5 3 l-4 19 l7 10 l-2 6 l2 -8 l-7 -8 l5 -14 l-1 -6 l-5 -3 l-7 6 l-10 -11 l-7 2 l-26 -29 l-13 -10 l-2 4 l38 41 l-5 15 l-98 50 l-36 -67 l-9 -9 l-37 -66 M700 0 l14 53 l35 96 l17 29 l11 32 l68 139 l22 34 l15 8 l-1 6 l2 -6 l-16 -9 l-28 -45 l-62 -128 l-11 -31 l-14 -23 l-24 -60 l-28 -94 M775 212 l-1 5 l46 95 l39 70 l176 183 l-3 4 l2 -6 l-175 -182 l-27 -45 l-58 -120 l1 -3 M182 933 l3 5 l-6 3 l-26 43 l-35 40 l5 -5 l2 9 l-3 3 l-6 -3 l-10 12 l-15 1 l-46 -42 l7 -5 l-2 5 l4 -4 l2 3 l-3 4 l3 -2 l0 -4 l-10 -6 l-16 18 l-9 -8 l-8 1 l-6 -14 l8 -11 l-13 -10 l0 -19 l2 12 l-4 3 l3 2 l-3 3 l14 10 l-7 10 l6 14 l8 0 l5 7 l4 0 l16 -18 l4 3 l-6 6 l3 2 l-15 17 l2 12 l-15 9 l13 -6 l0 -14 l14 -17 l46 40 l16 -3 l10 -11 l6 2 l0 -12 l29 -33 l26 -43 l5 -3 l2 5 l-3 -11 M575 14 l-44 10 l44 -10 l5 3 l20 93 l-8 8 l-93 26 l-5 -8 l-16 -72 l-7 -8 l-5 0 l-2 6 l5 18 l6 4 l-7 -7 l-3 -17 l5 -4 l8 9 l19 78 l22 -3 l79 -26 l2 -9 l-20 -89 l-4 -2 M620 16 l0 20 l5 7 l7 1 l-7 9 l11 5 l-2 5 l-6 2 l11 44 l15 29 l24 95 l36 114 l-36 -114 l-24 -95 l-15 -30 l-11 -41 l8 -5 l0 -4 l-11 -6 l7 -5 l0 -4 l-7 -1 l-4 -6 l-2 -18 l3 -2 l3 6 l-2 -6 M862 784 l-72 47 l-6 16 l7 -16 l73 -47 l49 67 l1 9 l-8 15 l-67 44 l-12 1 l-16 -13 l-5 5 l2 2 l3 -7 l16 14 l21 -6 l56 -38 l10 -17 l-1 -10 l-44 -63 l-5 -3 M860 21 l6 83 l-7 20 l-4 2 l-21 -13 l-6 7 l-10 3 l-1 13 l-3 3 l-42 -14 l-2 2 l3 6 l28 12 l14 2 l8 -6 l3 2 l-5 11 l-6 0 l-19 11 l26 -11 l4 -12 l-5 -1 l-6 6 l-5 -3 l-6 2 l-33 -16 l2 -5 l37 13 l2 5 l6 -7 l-1 -11 l4 -4 l7 0 l7 -7 l23 12 l8 -22 l-5 -82 M501 645 l-6 6 l-31 13 l-14 12 l12 -9 l5 9 l-5 -9 l4 -4 l34 -15 l15 29 l9 5 l14 34 l-48 31 l-25 12 l-5 -3 l-37 -66 l-7 -7 l47 77 l28 -13 l47 -30 l-14 -36 l-10 -6 l-10 -24 l-5 -4 l3 -2 M736 482 l-6 1 l-2 6 l-10 0 l-4 4 l4 -4 l8 3 l5 -9 l5 0 l14 28 l2 15 l8 9 l29 68 l6 7 l-6 3 l-19 -16 l-7 0 l-20 -45 l2 -7 l-2 7 l22 51 l0 -4 l5 -1 l4 6 l6 1 l9 8 l14 -4 l-8 1 l-6 -8 l-26 -61 l-12 -18 l0 -6 l3 -1 l5 10 l6 3 l-6 -4 l-5 -10 l2 -3 l-3 5 l-3 -2 l-6 -20 l-8 -12 M167 452 l-29 19 l16 23 l6 -1 l21 -15 l5 0 l-3 -1 l8 -6 l5 7 l-2 23 l-4 3 l-1 -13 l-10 -4 l-38 23 l-5 7 l7 -8 l33 -20 l12 2 l-1 17 l-13 10 l0 4 l7 6 l-3 20 l3 -20 l-4 -4 l3 -3 l6 1 l-6 -1 l-3 3 l-3 -4 l20 -19 l0 -28 l-13 -11 l6 7 l-1 5 l-30 20 l-16 -22 l24 -19 l3 0 l8 11 l-5 -9 M813 471 l57 105 l-3 8 l3 -8 l44 78 l-5 12 l6 -8 l2 5 l-4 7 l4 -7 l12 19 l-3 12 l-4 1 l-9 -17 l3 8 l4 2 l0 6 l5 2 l5 -9 l-1 -6 l-115 -210 M475 925 l4 10 l-7 5 l-5 -1 l-6 -12 l-52 30 l5 0 l28 60 l-8 6 l-26 -46 l-1 -10 l-10 -17 l1 -3 l-7 3 l4 -2 l7 9 l6 21 l23 44 l9 -2 l1 -8 l-28 -56 l48 -29 l9 22 l-3 6 l-14 9 l15 -10 l4 -7 l-3 0 l0 -6 l11 -6 l-3 -10 M1142 1062 l-6 14 l4 -9 l5 -1 l35 32 l-60 78 l-9 -4 l-31 -31 l10 -9 l9 -15 l18 -15 l18 -24 l-27 33 l-15 12 l-13 20 l36 34 l4 0 l60 -79 l-5 -8 l-33 -26 M982 372 l-14 12 l-9 -8 l16 15 l7 15 l57 70 l3 8 l5 -1 l-14 11 l2 6 l24 27 l-25 -32 l5 -6 l7 -2 l13 16 l-13 -17 l3 -4 l30 38 l-25 -34 l-15 -8 l-71 -94 l15 -12 l9 7 l-5 -7 M128 330 l15 19 l7 16 l67 85 l-8 99 l7 23 l4 3 l4 13 l4 0 l3 -6 l-2 -1 l-2 7 l-3 -1 l-15 -38 l7 -102 l-37 -44 l-29 -39 l-7 -13 l2 -1 l-17 -19 M339 554 l13 20 l0 10 l19 32 l2 12 l9 -2 l4 3 l28 53 l-31 -56 l2 -3 l70 -36 l21 -14 l4 1 l4 8 l9 0 l-8 0 l-5 -9 l-4 0 l-91 49 l-2 4 l-9 2 l-3 -13 l-9 -11 l-10 -21 l0 -10 l-4 -2 l-8 -16 M106 323 l33 46 l-3 6 l-9 3 l-5 7 l10 -10 l4 0 l12 16 l-1 5 l2 -4 l6 2 l12 18 l41 45 l-5 47 l1 29 l-6 15 l6 -15 l-1 -29 l5 -48 l-41 -45 l-8 -14 l-12 -7 l-10 -14 l2 -8 l-33 -44 M573 20 l-41 10 l-9 15 l-37 13 l16 76 l90 -26 l-87 27 l-5 -6 l-15 -67 l6 -7 l33 -10 l9 -15 l40 -9 l3 5 l-1 -4 M566 138 l-31 7 l-27 12 l-3 15 l-23 30 l15 62 l-9 12 l-9 4 l10 -4 l8 -12 l-14 -63 l22 -28 l5 -18 l25 -10 l32 -7 l4 3 l10 36 l2 -2 l1 4 l17 -10 l-15 7 l-6 -1 l-9 -35 l-4 -2 M280 853 l17 20 l16 3 l8 5 l30 -7 l15 29 l-12 17 l-7 1 l-6 -7 l15 17 l-9 -10 l9 -1 l7 -15 l5 0 l12 24 l-7 8 l-1 10 l15 26 l-2 -8 l-10 -11 l9 -14 l-9 11 l-3 -5 l1 -9 l10 -10 l-4 1 l-26 -52 l-4 -4 l-28 9 l-7 -5 l-15 -2 l-19 -20 M1151 466 l62 79 l90 125 l15 13 l-15 -14 l-90 -125 l-61 -77 M611 190 l8 21 l-16 11 l-26 1 l-15 -15 l3 -10 l-3 11 l14 14 l-4 6 l-2 -4 l-13 1 l-9 -34 l9 31 l-5 6 l13 -4 l5 3 l-31 12 l34 -12 l9 3 l5 -5 l-7 5 l-6 -3 l2 -5 l28 -1 l16 -10 l17 1 l6 17 l-4 3 l-8 -1 l11 0 l-4 -18 l-4 -3 l-14 1 l-8 -21 M854 811 l-17 12 l-11 3 l-27 22 l-5 21 l14 22 l-13 -21 l4 -21 l29 -24 l8 -1 l19 -13 l20 1 l6 5 l15 24 l-3 15 l-30 27 l-9 2 l-18 13 l-12 0 l13 0 l16 -12 l8 -1 l31 -26 l4 -21 l-17 -24 l-12 -3 M163 776 l-28 30 l-31 43 l-9 -5 l-5 4 l18 20 l12 6 l54 42 l19 19 l9 3 l-12 -6 l-15 -16 l-54 -42 l-11 -5 l-18 -20 l3 -3 l9 4 l5 -10 l53 -63 M455 843 l-7 9 l-25 13 l-1 6 l12 11 l3 6 l-3 6 l12 22 l-8 -18 l12 -6 l2 -6 l-6 -9 l-11 7 l-13 -17 l35 -22 l11 17 l-6 5 l8 16 l6 -1 l8 14 l11 7 l-7 21 l8 -22 l-12 -7 l-14 -29 l7 14 l-6 3 l-9 -13 l6 -7 l-10 -19 l-3 0 M837 725 l2 2 l-8 25 l-22 30 l-2 8 l-43 31 l-29 42 l-17 12 l5 13 l-20 8 l20 -7 l0 -6 l-5 -7 l16 -11 l30 -43 l43 -31 l2 -8 l19 -24 l10 -34 M975 709 l4 3 l-2 4 l-15 6 l-19 14 l5 6 l6 -2 l23 31 l-6 3 l-23 -30 l-10 12 l1 9 l19 27 l6 2 l13 -16 l-13 15 l-4 0 l-21 -29 l-1 -8 l10 -11 l23 30 l6 -2 l0 -5 l-18 -24 l-16 -8 l5 -5 l9 -2 l6 -7 l15 -6 l-1 -7 M939 252 l-20 17 l-1 15 l7 12 l1 -3 l8 0 l27 31 l4 -1 l28 -23 l2 -6 l-26 -31 l-8 1 l-19 -10 l0 3 l-3 -1 l21 8 l8 -1 l27 34 l-31 26 l-5 -1 l-25 -30 l-9 2 l-7 -10 l0 -13 l20 -18 M63 526 l18 20 l16 8 l61 53 l-15 22 l6 -7 l5 6 l9 3 l-8 -3 l-6 -7 l10 -12 l9 8 l3 -3 l0 -7 l-8 -10 l10 -16 l-1 -3 l-9 19 l9 13 l-5 5 l-66 -58 l-19 -11 l-19 -19 M719 280 l-3 3 l1 8 l18 37 l-18 27 l42 113 l6 1 l10 -4 l-10 4 l-7 -3 l-41 -111 l18 -26 l0 -6 l-15 -24 l-4 -12 l3 -6 M1207 887 l2 5 l-11 19 l-20 23 l75 81 l-3 8 l-9 3 l0 3 l9 -6 l3 3 l-4 -6 l5 -7 l3 2 l-1 -6 l-17 -17 l18 19 l-4 3 l-74 -80 l20 -23 l10 -18 l-1 -5 M661 730 l-67 40 l4 5 l20 -12 l-21 12 l-3 -4 l7 -7 l58 -33 l5 0 l-7 9 l-29 14 l-7 9 l21 47 l-21 -47 l8 -9 l38 -21 l-5 -3 M1239 688 l-7 2 l2 2 l-4 6 l8 14 l-16 23 l4 5 l2 -4 l-6 -1 l2 -5 l4 -2 l4 6 l21 -18 l31 37 l-10 11 l2 6 l-9 6 l4 0 l5 -6 l-2 -6 l11 -12 l-26 -31 l-9 -6 l-18 19 l-4 -6 l11 -20 l-9 -9 l5 -10 l7 3 l14 20 l-15 -22 M504 571 l26 54 l-1 7 l29 63 l7 6 l29 64 l-28 -63 l-8 -8 l-29 -63 l1 -7 l-25 -52 M554 490 l-65 29 l65 -29 l4 3 l4 14 l10 17 l7 1 l7 14 l7 4 l64 -25 l-64 25 l-7 -5 l-3 -10 l-9 -3 l-9 -12 l-9 -23 M800 614 l-11 5 l12 21 l-1 5 l9 14 l0 7 l-7 10 l-23 13 l-12 0 l8 3 l22 -15 l5 0 l6 -8 l1 -11 l-9 -14 l1 -4 l-10 -20 l9 -6 l32 65 l11 16 l-42 -80 M690 0 l8 36 l22 67 l28 67 l12 9 l-6 -5 l-1 -9 l0 9 l-6 -6 l-1 -6 l6 -4 l-4 4 l-3 -1 l-22 -51 l-22 -64 l-11 -44 M108 105 l10 20 l9 5 l0 3 l-6 0 l0 3 l7 6 l1 14 l7 0 l5 4 l88 -39 l7 -8 l14 -2 l-15 2 l-7 8 l-30 15 l-57 23 l-13 -5 l2 -10 l-9 -8 l6 -2 l0 -5 l-9 -5 l-9 -18 M535 725 l-70 47 l58 104 l-58 -104 l71 -46 M519 1064 l8 20 l22 37 l-6 4 l-14 -25 l-6 -4 l6 5 l14 24 l-11 4 l-19 -34 l-2 -14 l-8 -5 l8 6 l3 16 l18 32 l20 -10 l-5 -1 l-14 -30 l-6 -6 l0 -5 l11 -5 l0 -3 l-11 8 l-7 -13 M538 727 l50 110 l-65 44 l66 -42 l-51 -111 M938 366 l-8 2 l-3 8 l15 20 l6 1 l6 -4 l-11 3 l-13 -17 l12 -9 l4 2 l-6 3 l6 -2 l7 10 l-11 6 l12 -6 l7 14 l1 13 l-5 5 l0 5 l11 -4 l8 13 l-7 -13 l-9 5 l-3 -2 l6 -10 l6 1 l2 -3 l-7 -3 l7 3 l-4 3 l-6 -2 l0 -11 l-5 -13 l-12 -15 l-14 8 l-4 -3 l6 -7 l7 -1 M949 5 l-64 126 l-3 -4 l-2 3 l-11 0 l2 2 l-5 3 l-9 -3 l0 6 l8 4 l-9 -6 l3 -4 l7 4 l15 -7 l6 4 l60 -125 l4 -3 M492 280 l-83 31 l-4 4 l-4 16 l11 26 l-11 -28 l8 -18 l83 -31 l5 6 l16 46 l-19 -52 M664 0 l2 25 l36 164 l5 1 l3 -1 l-6 1 l-3 -4 l-37 -179 M1216 777 l-6 8 l2 11 l-59 56 l-45 -49 l-18 16 l12 -11 l8 -3 l42 48 l65 -61 l-4 3 l-3 -7 l4 -7 l5 -1 l-3 -2 M1071 1014 l-10 23 l-77 104 l-2 4 l5 4 l-4 -4 l70 -95 l18 -36 l16 14 l-2 8 l2 -9 l-15 -13 M1006 171 l-37 35 l1 4 l4 1 l6 -5 l10 10 l9 -5 l6 -8 l0 -4 l-5 -4 l5 7 l-12 14 l-13 -10 l20 -18 l13 -7 l-7 6 l-7 1 l-26 23 l-4 -3 l37 -36 l4 0 l11 14 l-8 5 l-5 -1 l5 1 l10 -5 l-11 -13 l-5 -1 M1223 485 l-13 19 l-3 10 l7 2 l3 -3 l9 10 l4 -1 l6 7 l6 -1 l14 -27 l-4 -3 l-7 1 l-5 -4 l4 6 l3 -4 l9 6 l-17 26 l-9 -7 l0 -15 l-2 3 l3 8 l-3 5 l-11 -10 l3 -8 l-4 1 l2 5 l-5 5 l-6 -3 l8 -14 l12 8 l-12 -9 l8 -12 l14 7 l-13 -7 M651 172 l15 38 l44 141 l-56 -176 M835 667 l16 17 l21 41 l15 21 l64 -39 l16 -5 l-17 5 l-64 37 l-16 -23 l-19 -38 l-14 -14 M438 1058 l5 5 l9 25 l9 14 l34 -17 l27 48 l20 6 l6 -4 l7 3 l-7 -3 l-14 2 l-12 -5 l-26 -48 l-35 17 l-5 -5 l-17 -38 M671 355 l-4 7 l-8 5 l-75 27 l-3 6 l-4 -1 l4 1 l-2 12 l5 5 l2 13 l9 15 l0 11 l3 4 l-3 -4 l0 -11 l-12 -25 l3 -7 l-2 4 l-6 -9 l6 -13 l78 -29 l10 -10 M678 111 l1 14 l25 101 l-3 10 l7 4 l-3 7 l14 31 l-14 -31 l3 -8 l-7 -4 l3 -9 l-26 -112 M1173 737 l7 2 l2 6 l44 37 l-2 5 l-7 -3 l27 18 l-19 -15 l0 -8 l-14 -10 l13 -16 l5 0 l15 20 l9 6 l2 7 l-2 -8 l-9 -6 l-14 -19 l-5 -3 l-15 19 l-33 -32 M391 365 l6 9 l3 17 l18 44 l-16 8 l-13 12 l-7 0 l-9 7 l-22 6 l-21 12 l11 -7 l6 0 l4 -5 l23 -6 l8 -6 l7 0 l14 -13 l15 -7 l-24 -68 M1034 682 l5 14 l12 18 l-9 2 l-12 -16 l-24 13 l24 -13 l14 19 l7 -5 l4 6 l-42 31 l-10 4 l-5 -5 l9 5 l48 -33 l-21 -39 M1249 832 l-24 25 l2 8 l2 -2 l-4 -5 l24 -25 l8 4 l7 12 l-39 38 l-7 -8 l7 -11 l9 -2 l9 -10 l-2 -8 l2 8 l-10 10 l-9 2 l-6 13 l6 6 l13 -8 l27 -29 l-3 -9 l-11 -8 M349 663 l-36 16 l-8 -2 l-18 3 l-9 5 l9 -5 l18 -3 l9 2 l26 -14 l15 -2 l43 80 l-42 -80 M741 1071 l28 36 l-3 10 l10 12 l-1 6 l-10 12 l-2 17 l-18 28 l18 -27 l1 -6 l10 -5 l9 -18 l-9 17 l-8 4 l-2 -7 l12 -15 l0 -9 l-9 -9 l2 -11 l-28 -34 M627 306 l-7 14 l-5 1 l-6 -6 l-18 6 l2 4 l12 -4 l6 5 l16 -2 l4 3 l-1 4 l-17 3 l-14 8 l-7 -3 l-4 4 l-17 -8 l17 9 l43 -13 l0 -5 l-7 -3 l-5 3 l-8 0 l-4 -6 l-9 4 l-6 -1 l17 -8 l6 7 l7 -2 l1 -8 l5 -6 M474 946 l11 9 l17 33 l-11 8 l15 -9 l4 5 l-5 16 l-8 5 l-29 -55 l25 52 l7 3 l6 -6 l3 -18 l-2 -4 l-2 3 l-5 -2 l-15 -32 l-11 -7 M886 257 l-6 15 l-7 8 l1 27 l-3 5 l-14 5 l-4 -10 l14 -7 l-2 -3 l-7 0 l8 2 l-13 7 l-3 -7 l12 -9 l-5 -3 l4 5 l-11 7 l-7 -12 l7 -3 l-7 3 l15 35 l0 -5 l15 -6 l0 -30 l7 -8 l6 -15 M622 271 l-70 24 l-1 4 l6 9 l-2 3 l28 -13 l9 4 l27 -9 l5 -4 l-21 11 l-11 2 l-9 -4 l-24 10 l-8 -9 l4 -5 l67 -22 M998 385 l96 124 l-5 11 l5 -5 l0 -7 l-96 -122 M126 768 l-8 6 l-2 7 l-8 4 l-5 9 l-7 4 l-16 25 l-5 14 l4 7 l9 1 l11 -17 l12 -11 l4 3 l6 -2 l1 -5 l-4 7 l-8 -3 l-24 29 l-11 -8 l2 -9 l19 -30 l7 -4 l6 -10 l7 -3 l5 -11 l6 -2 M293 363 l-8 3 l8 -3 l2 4 l-9 10 l6 14 l12 2 l38 -13 l4 9 l-4 16 l5 7 l-2 9 l4 3 l6 -5 l-6 5 l-4 -4 l6 -15 l-3 -2 l3 5 l-4 4 l-5 -7 l4 -11 l-3 -14 l-39 13 l-10 -1 l-8 -13 l9 -12 l-1 -4 M404 744 l18 32 l11 9 l27 47 l-1 4 l-27 13 l-12 11 l11 -10 l28 -14 l1 -5 l-30 -50 l2 -3 l-4 2 l-7 -6 l-15 -28 M981 924 l-10 12 l0 4 l43 45 l4 9 l10 10 l-14 -20 l-42 -44 l0 -4 l11 -11 l43 45 l-44 -45 M308 549 l-22 9 l-5 5 l-12 2 l-11 9 l-15 0 l-13 4 l-3 -4 l7 -18 l-7 16 l3 7 l13 -5 l18 -1 l9 -8 l12 -2 l5 -5 l21 -8 l8 12 l12 32 l3 -1 l-6 -5 l-14 -36 M928 1004 l-2 1 l47 46 l-2 5 l-53 -50 l53 51 l-2 12 l4 4 l-4 -4 l4 -19 l-46 -45 M1154 686 l-9 11 l10 -8 l-4 13 l11 11 l-1 3 l-10 -8 l-3 1 l-22 30 l-23 19 l2 2 l2 -5 l19 -15 l22 -30 l3 -1 l8 9 l3 -2 l0 -4 l-10 -10 l4 -10 l21 18 l-24 -23 M612 27 l-3 3 l0 9 l4 8 l-4 -8 l0 -7 l3 -2 l7 14 l-3 2 l4 3 l7 40 l20 70 l-20 -70 l-8 -45 l-8 -16 M968 1132 l-23 16 l-9 0 l-33 36 l-8 5 l-3 -4 l30 -31 l-31 31 l5 6 l4 -5 l5 6 l-4 -6 l36 -38 l9 0 l23 -16 l8 4 l-5 -4 M42 639 l-8 8 l9 -1 l53 49 l-26 35 l-8 21 l4 -14 l31 -40 l-1 -4 l-57 -49 l2 -4 M635 970 l-45 31 l-9 4 l-2 -2 l1 3 l56 -34 l38 59 l-5 -9 l5 -3 l6 2 l-6 -3 l-6 3 l-29 -48 l-5 -2 M716 636 l7 16 l14 15 l32 57 l43 -23 l-44 21 l-31 -56 l-9 -7 l-11 -22 M274 259 l-28 10 l-9 -3 l10 3 l29 -9 l7 12 l1 13 l-22 8 l20 -7 l6 13 l-7 7 l1 4 l2 -6 l8 -1 l9 17 l-7 -18 l-7 -1 l3 -1 l-7 -13 l0 -15 l-8 -12 M889 133 l64 83 l6 1 l4 -4 l3 3 l-6 6 l-13 3 l-7 9 l8 -9 l13 -3 l5 -5 l-1 -3 l-7 3 l-5 -2 l-62 -80 M497 583 l-7 7 l-1 9 l31 69 l7 6 l10 18 l7 24 l-7 -25 l-10 -18 l-7 -6 l-31 -69 l1 -7 l7 -7 M952 464 l-4 5 l4 -5 l33 34 l-4 6 l2 -3 l6 8 l-5 -6 l2 -5 l8 8 l-2 9 l43 43 l-43 -44 l2 -9 l-41 -40 M359 652 l-7 2 l7 -1 l4 4 l38 75 l12 7 l19 34 l-19 -35 l-8 -2 l-42 -80 M753 1047 l-12 18 l-15 7 l-2 5 l34 37 l-30 -35 l5 -3 l31 33 l-32 -36 l-5 6 l-3 -3 l3 -4 l11 -4 l1 2 l14 -22 M694 514 l-5 2 l9 2 l3 12 l4 0 l-6 -3 l-1 -7 l3 -3 l5 10 l8 3 l29 65 l-2 4 l11 15 l-10 -15 l0 -7 l-26 -59 l-10 -7 l-3 -8 l-8 -3 M1018 367 l-10 9 l-14 3 l1 3 l6 -6 l7 1 l13 -9 l8 17 l6 -2 l4 10 l8 -1 l10 11 l-6 2 l-1 4 l4 2 l6 -3 l3 4 l-6 3 l-1 4 l6 0 l1 -2 l-3 3 l-4 -2 l7 -6 l-3 -6 l-2 4 l-7 -1 l5 -8 l-9 -10 l-6 3 l-6 -12 l-7 2 l-2 -11 l-7 -6 M49 225 l-9 3 l-23 21 l28 -23 l7 -1 l6 4 l31 51 l-30 20 l30 -20 l-16 -30 l-15 -22 l-6 -3 M291 0 l8 28 l10 8 l15 -3 l80 -32 l-90 35 l-14 -7 l-9 -25 M496 271 l6 6 l15 47 l0 15 l18 56 l0 11 l0 -11 l-18 -57 l0 -14 l-18 -53 M246 29 l-4 4 l-60 21 l-10 7 l-33 12 l105 -42 l12 23 l-10 -22 M178 1039 l37 38 l-2 12 l-13 8 l-14 -16 l5 -10 l-1 -6 l-18 -18 l18 19 l0 8 l-6 6 l15 17 l5 0 l9 -7 l2 -15 l-36 -36 M56 1088 l-5 2 l11 22 l-20 21 l-21 8 l-15 -19 l-3 -9 l-3 3 l20 25 l23 -8 l18 -17 l2 -5 l-11 -21 l7 2 l5 13 l0 -4 l5 -1 l-5 1 l-5 -10 M198 593 l-13 53 l-24 63 l0 6 l8 13 l-8 -19 l24 -62 l13 -46 M1160 880 l-4 7 l7 6 l1 7 l-5 10 l-3 1 l-17 -19 l-20 11 l20 -10 l17 19 l8 -11 l18 17 l3 -1 l13 -18 l-6 10 l-10 8 l-18 -16 l-1 -9 l-7 -6 l5 -6 M111 482 l-1 4 l-9 5 l-11 -8 l-10 15 l23 26 l-23 -25 l10 -15 l10 7 l12 -7 l4 6 l-2 8 l12 14 l0 9 l8 -4 l-8 3 l1 -7 l-13 -16 l0 -4 l3 -3 l2 2 l-7 -9 M30 713 l15 16 l-6 6 l5 -3 l13 15 l-21 30 l-4 2 l-25 -22 l-7 -2 l5 1 l28 26 l26 -36 l-4 -1 l-11 -13 l0 -6 l-13 -13 M158 700 l-6 4 l6 -2 l-17 38 l2 15 l7 6 l10 -5 l21 -19 l22 -5 l-26 7 l-18 17 l-11 4 l-7 -10 l0 -9 l17 -38 M957 858 l-44 34 l-25 27 l26 -27 l43 -33 l3 0 l26 32 l-1 3 l-2 -9 l-18 -22 l-7 -4 M91 335 l-6 9 l11 17 l10 26 l-14 15 l14 -15 l-12 -31 l-9 -12 l4 -8 l12 -1 l15 23 l16 12 l-11 -7 l-16 -25 l-7 -3 M432 899 l-6 8 l-39 24 l-2 4 l6 10 l3 1 l50 -26 l-9 2 l-41 23 l-8 -7 l-1 -4 l42 -27 l6 -8 M102 451 l-27 20 l-15 -6 l-2 -4 l-6 4 l5 -4 l3 4 l-4 4 l7 -4 l16 7 l17 -11 l-14 10 l-5 -1 l16 -14 l22 -5 l5 8 l6 -3 l7 8 l-7 -8 l-6 2 l-4 -7 l-12 2 M542 719 l29 56 l5 20 l17 36 l-1 7 l1 -8 l-18 -38 l-5 -20 l-27 -52 M1021 714 l-23 9 l-30 28 l18 -13 l13 -15 l24 -8 l7 8 l-26 15 l-11 14 l5 2 l-5 -2 l12 -14 l26 -15 l-9 -8 M874 140 l-2 1 l4 8 l7 6 l9 56 l9 7 l18 -17 l8 0 l8 -6 l-11 7 l-5 -2 l-17 16 l-7 -1 l-8 -26 l-4 -34 l-8 -8 l-1 -6 M479 369 l-12 6 l12 -5 l4 5 l-15 8 l11 26 l46 -18 l8 9 l-8 -9 l-44 18 l-13 -26 l17 -8 l-5 -5 M711 499 l-86 40 l-4 10 l8 21 l0 -6 l-8 -15 l5 -10 l87 -40 M516 186 l6 13 l-4 12 l9 24 l3 22 l14 33 l1 16 l-1 -16 l-14 -33 l1 -6 l-5 -11 l2 -5 l-10 -24 l4 -12 l-6 -12 M756 302 l-5 4 l5 -4 l32 80 l4 2 l22 -6 l8 6 l-8 -6 l-21 5 l-5 -2 l-31 -79 M1006 1000 l-20 22 l25 23 l1 16 l-10 29 l10 -29 l-1 -19 l-24 -20 l19 -21 l15 12 l-14 -12 M395 37 l-12 10 l-18 3 l-14 10 l-31 11 l-8 17 l-7 4 l1 8 l-1 -7 l8 -5 l8 -17 l37 -14 l8 -7 l6 1 l16 -6 l5 -7 l6 2 l-4 -2 M828 27 l-2 4 l4 -4 l4 3 l-2 5 l-4 -3 l4 3 l-3 8 l-31 21 l-7 -6 l3 -4 l6 3 l25 -18 l4 0 l-3 -2 l-25 19 l-7 -3 l-3 3 l2 6 l6 2 l29 -19 l6 -13 l-2 -5 l-3 1 M583 568 l-5 7 l-26 11 l-2 4 l3 5 l6 -7 l13 -7 l4 1 l-1 4 l-25 12 l-8 -12 l7 12 l30 -13 l-5 -5 l-20 13 l-4 -3 l11 -9 l18 -6 l3 -6 M48 631 l50 48 l8 -3 l0 9 l10 0 l9 -5 l13 11 l-13 -12 l-9 6 l-9 0 l-1 -9 l-8 1 l-14 -10 l-5 -8 l-29 -26 M927 1047 l-23 23 l-20 27 l20 -26 l23 -23 l4 0 l23 22 l-18 20 l17 -16 l1 -5 l-23 -22 l-3 1 M371 330 l-89 32 l2 11 l-3 -9 l62 -25 l6 3 l-1 -4 l17 -7 l6 0 l1 3 l-9 2 l8 0 l1 -5 M1128 452 l4 8 l-8 8 l-14 6 l-13 -13 l-10 6 l2 7 l11 13 l15 -2 l16 -15 l-17 15 l-13 2 l-14 -19 l10 -6 l10 11 l5 1 l20 -13 l-3 -9 M308 803 l-16 11 l1 2 l18 -11 l8 11 l-16 14 l-7 -8 l-4 0 l15 30 l-15 -29 l2 -2 l10 9 l18 -16 l12 -2 l-16 3 l-5 -9 l-5 -2 M451 77 l-6 2 l8 3 l9 41 l-55 21 l-11 7 l23 -12 l42 -14 l-5 -32 l-6 -15 M593 840 l-1 5 l-65 40 l63 -40 l6 3 l7 14 l-5 15 l-6 3 l4 0 l7 -18 l-11 -21 M770 116 l-9 11 l4 9 l-5 7 l0 6 l30 14 l2 10 l-1 -10 l-31 -15 l5 -11 l-4 -9 l8 -11 l6 -1 l32 14 l-32 -14 l-4 1 M48 0 l7 18 l16 7 l2 6 l-28 13 l-11 0 l-34 14 l74 -26 l-4 -8 l-17 -9 l-5 -12 M872 0 l-7 8 l5 85 l3 8 l-2 7 l10 5 l-10 -5 l4 -6 l-5 -9 l-5 -85 l6 -7 M1208 809 l-2 1 l6 7 l0 5 l-7 -6 l-5 0 l7 10 l-2 3 l-11 -7 l-37 35 l38 -35 l11 7 l1 -3 l-7 -9 l3 -2 l9 8 l2 -2 l-7 -11 l3 -1 l8 6 l-8 -6 M110 456 l11 18 l6 -2 l-6 2 l-5 -6 l5 -5 l6 3 l2 9 l15 26 l-10 6 l-13 -16 l0 -4 l0 5 l12 15 l11 -5 l1 -4 l-16 -24 l-2 -9 l-3 -3 l-7 3 l-7 -7 M747 309 l43 111 l-42 -111 M82 290 l-62 44 l-13 5 l2 3 l69 -49 l3 8 l-3 7 l6 7 l-5 -6 l2 -13 l-3 -3 l6 -3 M387 1085 l-10 10 l-1 8 l9 27 l-4 7 l0 11 l7 13 l-28 17 l28 -17 l-7 -13 l4 -18 l-9 -33 l13 -12 M111 171 l-10 6 l-4 -1 l-9 10 l-60 34 l-11 -5 l2 -7 l-3 8 l13 4 l60 -34 l6 -8 l16 -6 M1159 1157 l-3 7 l16 12 l1 -4 l-3 2 l-12 -8 l-2 -5 l4 -2 l15 12 l12 -13 l3 4 l-16 20 l-7 -4 l15 14 l-8 -10 l15 -17 l0 -7 l-3 -1 l-10 13 l-12 -8 M595 779 l30 64 l-3 -9 l8 -10 l7 12 l6 0 l8 -6 l-12 6 l-9 -14 l-8 11 l-27 -53 M169 1051 l16 20 l-18 19 l-27 19 l-11 -13 l11 -8 l-10 4 l-1 6 l9 11 l14 -6 l34 -32 l-12 -15 M631 571 l40 95 l6 9 l4 0 l-10 -9 l-38 -93 M420 190 l12 31 l1 15 l-6 6 l-39 18 l2 13 l-2 -11 l39 -20 l9 -10 l-17 -41 M641 889 l-47 27 l-4 -2 l-1 -9 l-12 4 l8 4 l-7 -3 l8 -6 l4 4 l-4 2 l5 6 l4 0 l46 -27 l12 20 l-11 -19 M1260 423 l-11 31 l1 5 l5 2 l-6 -7 l9 -29 l7 -2 l6 6 l-13 37 l-8 3 l-3 -4 l5 -1 l-6 -2 l4 8 l8 -4 l13 -37 l-6 -6 M21 375 l-8 13 l5 -6 l4 3 l26 42 l-26 -41 l-2 -9 l7 5 l20 30 l-25 -36 M1079 114 l-18 13 l15 -12 l5 3 l4 9 l-26 12 l-12 0 l12 0 l25 -11 l-1 3 l14 18 l-2 6 l2 -7 l-13 -17 l0 -3 l4 -1 l-9 -12 M115 138 l-64 36 l-10 -6 l-7 -13 l3 -5 l-3 -5 l2 7 l-4 3 l6 4 l5 12 l8 4 l62 -35 M141 692 l2 5 l-30 45 l-11 9 l-10 -9 l8 9 l11 -4 l-4 12 l-4 -5 l3 5 l-2 4 l6 -7 l1 -12 l16 -19 l17 -28 l-2 -5 M668 389 l-48 19 l-30 -10 l26 12 l56 -21 l21 14 l-20 -14 M240 971 l-9 18 l4 14 l-8 15 l3 8 l-7 16 l-6 6 l6 -5 l6 -14 l-1 -11 l5 -12 l7 -7 l-5 3 l-1 -7 l12 -11 l-11 10 l-4 -4 l10 -18 M308 685 l-10 7 l0 4 l9 7 l31 60 l-3 10 l4 -9 l7 0 l-5 1 l-6 -6 l-28 -57 l-9 -7 l10 -9 M546 308 l11 32 l2 25 l6 4 l5 18 l9 6 l-5 -5 l6 -8 l5 0 l-7 1 l-4 6 l-4 -1 l0 -8 l-5 -10 l-6 -3 l-2 -25 l-11 -31 M1019 1105 l-4 3 l-1 7 l8 -2 l14 15 l18 11 l0 -4 l-2 2 l-14 -8 l-18 -20 l-3 6 l-3 -2 l5 -8 l5 2 l29 26 l1 -3 l-3 1 l-30 -26 M987 265 l-5 4 l-2 -2 l22 29 l3 -2 l-23 -24 l5 -3 l30 31 l13 4 l5 9 l-2 -7 l-15 -6 l-31 -32 M488 775 l12 8 l9 15 l16 -4 l31 53 l-31 -54 l-15 5 l-11 -17 l-9 -6 M470 102 l2 8 l-6 5 l2 8 l-5 8 l-8 0 l-17 9 l-2 -3 l2 3 l-4 3 l-5 -3 l-26 13 l24 -12 l8 2 l7 -6 l1 2 l6 -5 l17 -5 l5 -10 l-3 3 l-2 -3 l6 -7 l-2 -6 M1023 831 l-4 10 l-9 3 l-13 15 l3 11 l-11 14 l3 9 l-25 19 l26 -19 l-3 -9 l10 -14 l-3 -11 l13 -14 l8 -2 l6 -12 M462 780 l-2 8 l29 48 l1 6 l4 2 l6 20 l10 11 l-10 -12 l-6 -20 l-4 -2 l-1 -6 l-26 -41 l-2 -13 M825 0 l-1 8 l-24 32 l-7 4 l-18 1 l-6 -4 l3 -7 l20 0 l-20 -1 l-3 9 l19 3 l13 -5 l25 -34 l-1 -5 M314 433 l1 4 l10 7 l-11 16 l6 12 l40 -16 l6 -11 l-7 11 l-38 15 l-7 -11 l10 -12 l1 -6 l-10 -8 M405 19 l-97 38 l63 -23 l28 -14 l13 -1 M1287 664 l-1 4 l-25 22 l0 9 l1 -7 l5 4 l-1 4 l28 -28 l6 5 l-11 -10 l5 4 l-26 25 l-6 -6 l25 -24 M464 565 l-85 48 l-3 9 l3 -8 l7 -6 l81 -43 M871 1118 l-5 6 l-3 -5 l-3 1 l6 5 l8 -6 l19 18 l-6 6 l3 19 l-11 26 l1 4 l-1 -4 l11 -26 l-2 -17 l6 -10 l-22 -16 M319 81 l17 47 l20 43 l-2 4 l2 -4 l2 4 l-23 -50 l-15 -44 M548 683 l20 51 l11 19 l9 25 l4 3 l-6 -8 l-38 -88 M274 927 l-4 6 l-16 0 l15 1 l28 23 l4 11 l-2 -11 l-30 -23 l8 -7 l27 21 l-26 -21 M254 72 l-86 37 l-12 -3 l2 3 l10 0 l85 -36 M353 1095 l-21 19 l-1 5 l25 59 l0 6 l0 -7 l-24 -57 l0 -5 l14 -11 l2 -7 l7 -2 M1011 773 l-2 4 l8 9 l4 1 l-11 -10 l2 -4 l14 16 l-7 6 l-8 -10 l8 11 l-11 8 l-13 -16 l13 20 l18 -19 l-12 -16 M274 901 l56 46 l18 -3 l4 4 l-9 8 l7 -5 l1 -6 l-23 0 l-53 -44 M221 344 l6 4 l7 19 l-25 13 l-21 5 l-6 -12 l10 -5 l-2 -1 l-10 7 l7 11 l23 -5 l25 -13 l-8 -19 l-6 -3 M59 858 l-8 7 l6 8 l0 8 l28 22 l-13 11 l-11 -4 l-14 -12 l13 12 l16 3 l9 -8 l0 -4 l-27 -23 l-6 -13 M344 893 l-11 4 l2 15 l-9 10 l9 12 l14 -1 l9 5 l3 -10 l1 3 l-7 7 l-5 -5 l-14 1 l-10 -12 l9 -9 l-1 -16 l9 -3 l14 2 l-13 -2 M587 560 l10 29 l-65 34 l2 2 l63 -35 l-10 -29 M249 88 l-4 11 l-10 11 l10 -10 l4 -10 l3 7 l-4 3 l4 2 l2 10 l8 3 l40 -16 l-40 16 l-8 -4 l-3 -10 l2 -9 l-4 -3 M215 310 l12 20 l7 21 l5 4 l2 22 l7 15 l12 -1 l-12 0 l-8 -19 l0 -17 l-6 -5 l-6 -20 l-13 -19 M1077 831 l-3 5 l2 3 l-1 -4 l4 -3 l13 24 l20 21 l0 -3 l5 -1 l25 -24 l-31 26 l-19 -20 l-14 -23 M230 0 l-90 39 l21 -10 l5 1 l24 -14 l35 -13 l9 0 l-3 -2 M787 576 l3 13 l11 7 l15 20 l3 8 l-3 3 l-7 -11 l1 -2 l3 11 l9 13 l9 6 l-7 -4 l-6 -10 l2 -6 l-4 -9 l-6 -4 l-9 -16 l-11 -7 l-4 -11 M392 819 l-16 7 l-7 7 l4 8 l5 -3 l11 17 l-2 7 l2 -8 l-12 -22 l1 6 l-5 2 l-3 -9 l22 -12 l21 5 l5 -4 l-6 3 l-18 -4 M1007 638 l-45 25 l-4 6 l11 -10 l3 1 l0 -3 l7 -2 l1 3 l0 -4 l15 -9 l1 5 l-6 14 l-9 10 l9 -9 l7 -16 l-1 -4 l14 -7 M404 972 l-4 17 l16 30 l0 13 l12 3 l6 8 l2 12 l-3 3 l3 -7 l-4 -13 l-17 -8 l1 -12 l-16 -29 l3 -16 M189 834 l6 9 l36 28 l0 10 l4 4 l10 -1 l-3 -12 l-1 5 l-6 -2 l9 7 l-5 4 l-8 -6 l1 -9 l-36 -28 l-6 -8 M106 1090 l-6 5 l7 -5 l14 13 l-5 24 l10 16 l1 -3 l2 3 l9 -9 l6 -1 l4 -8 l-5 8 l-5 0 l-9 9 l-3 -1 l-9 -14 l4 -25 l-14 -12 M178 60 l8 12 l6 20 l62 -26 l-62 25 l-13 -31 M1064 414 l7 2 l3 8 l-7 2 l-3 -3 l5 -1 l-2 -2 l-4 3 l3 3 l8 -2 l22 25 l11 -1 l10 -7 l8 5 l-8 -5 l-11 7 l-10 1 l-21 -24 l-2 -8 l-8 -3 M253 715 l-40 14 l5 0 l-3 4 l8 0 l15 -9 l-15 8 l-6 -4 l37 -13 l6 2 l-17 9 l20 -9 l-4 -2 M850 831 l-8 9 l-5 1 l-9 13 l-10 -11 l12 -11 l-19 17 l-4 10 l2 -3 l4 4 l10 1 l-11 -2 l-3 -3 l2 -6 l7 -7 l8 11 l4 0 l7 -12 l13 -10 M347 89 l17 15 l7 15 l-5 18 l6 -20 l24 -9 l3 -6 l11 0 l-6 2 l-5 -3 l-4 7 l-24 10 l-9 -17 l-8 -5 M1265 784 l-23 23 l-7 -1 l7 1 l26 -23 l36 38 l9 -5 l-9 4 l-35 -37 M829 198 l-7 7 l-3 23 l8 46 l22 -5 l-17 5 l-7 -3 l-6 -43 l3 -6 l0 -16 l8 -7 M267 514 l8 1 l5 5 l0 14 l-22 10 l-5 8 l-10 5 l12 -7 l4 2 l-4 -2 l1 -3 l9 -4 l10 18 l-10 -18 l15 -8 l2 -12 l-6 -8 l-8 0 M407 479 l-18 10 l-36 13 l-23 -8 l23 8 l36 -13 l18 -10 l8 0 l12 6 l-11 -6 M1102 1031 l-3 5 l37 29 l1 -2 l-38 -28 l5 -4 l36 30 l-36 -30 M759 296 l-8 3 l11 1 l31 80 l-32 -82 M985 452 l7 7 l7 -3 l28 34 l-2 18 l-14 12 l13 -9 l5 -12 l-1 -8 l-29 -37 l-5 5 l-8 -7 M455 1123 l1 12 l-5 10 l7 5 l-3 4 l-3 -1 l-5 -9 l-2 1 l6 8 l16 11 l3 -2 l-3 1 l-12 -9 l3 -4 l22 15 l-26 -18 l3 -19 l-3 -4 M492 1090 l-32 15 l-5 7 l6 -7 l31 -15 l27 46 l1 -3 l-5 -2 l-22 -41 M625 238 l8 14 l12 -1 l2 4 l-12 16 l5 25 l-9 4 l1 12 l0 -12 l9 -4 l-7 -21 l11 -13 l1 -11 l-12 0 l-7 -11 M355 321 l-83 33 l51 -21 l7 0 l19 -10 l9 -2 l3 4 l-3 -4 M596 718 l-3 7 l10 21 l22 -10 l-1 -5 l-14 6 l12 -6 l3 4 l-22 10 l-10 -20 l4 -6 l11 18 l-10 -17 M58 100 l-3 12 l12 26 l-10 4 l7 5 l13 -4 l17 -13 l-18 13 l-13 4 l-3 -4 l9 -8 l-14 -24 l5 -11 M221 471 l-3 3 l2 19 l-2 -19 l3 -2 l4 11 l-2 15 l3 16 l4 0 l4 -7 l3 2 l-3 3 l10 0 l-11 -5 l-1 4 l-6 3 l-3 -16 l2 -15 l-4 -11`);
+    plano.appendChild(grandes);
+    const secundarios = document.createElementNS(SVG, 'path');
+    secundarios.setAttribute('class','trazo-detalle');
+    secundarios.setAttribute('d', `M67 1114 l-66 76 l66 -74 M794 437 l-3 9 l-6 -1 l7 2 l4 13 l8 9 l6 19 l7 5 l0 8 l5 2 l3 10 l-3 -11 l-5 -2 l0 -7 l-6 -4 l-7 -21 l-12 -18 l2 -12 M85 590 l44 44 l6 -3 l22 20 l1 -2 l-23 -19 l-8 2 l-41 -41 M528 421 l-15 5 l18 -4 l9 25 l-18 -6 l-27 9 l29 -9 l13 8 l5 -3 l-13 -25 M445 232 l-9 5 l14 43 l38 -14 l-37 14 l-14 -41 l8 -6 M112 847 l13 14 l6 1 l32 29 l26 16 l-16 -9 l-61 -50 M516 404 l-64 26 l-8 -2 l-7 -15 l5 14 l10 3 l66 -26 M737 902 l-2 5 l2 -3 l7 12 l7 5 l2 9 l15 0 l5 -3 l-4 -7 l-8 -1 l0 -7 l-8 -5 l-1 -5 l1 5 l7 5 l1 8 l8 0 l4 6 l-5 4 l-14 0 l-15 -26 M410 863 l-5 3 l0 7 l-8 3 l-8 -2 l-14 11 l-12 -11 l-1 -7 l-2 2 l13 17 l17 -12 l8 2 l8 -3 l0 -7 l4 -3 l9 14 l5 1 l-5 -2 l-6 -13 M1030 313 l18 23 l10 -6 l11 6 l4 5 l-2 3 l16 18 l-1 7 l1 -8 l-17 -25 l-9 -6 l-13 5 l-17 -22 M930 870 l-9 9 l-10 1 l-11 9 l-5 13 l-8 -3 l-9 8 l-3 -2 l11 14 l-8 -12 l9 -8 l8 3 l8 -6 l-1 -6 l7 -8 l14 -4 l8 -8 M647 1112 l-5 4 l0 6 l3 -9 l3 17 l21 56 l-2 6 l2 -6 l-21 -56 l-1 -13 M1261 992 l-4 3 l6 -2 l11 3 l-8 11 l-3 -2 l-4 3 l4 -3 l5 3 l34 37 l-6 -5 l2 -5 l-31 -28 l7 -11 l-12 -3 M658 18 l18 92 l-19 -91 M8 275 l-8 6 l16 16 l5 16 l-6 -18 l-12 -10 l0 -4 l6 -4 l19 25 l6 -1 l6 -6 l-12 7 l-20 -26 M677 362 l7 6 l14 34 l-1 5 l15 36 l-1 4 l1 -4 l-15 -37 l1 -5 l-17 -39 M139 1030 l-13 11 l-48 62 l48 -61 l14 -12 M974 552 l-6 5 l-7 0 l-27 24 l1 14 l5 8 l-7 -20 l30 -26 l11 -3 l4 8 l-8 -1 l7 3 l2 -6 l-5 -5 M235 779 l16 35 l6 8 l6 2 l-1 3 l2 -4 l21 -11 l7 0 l-7 -1 l-11 8 l-16 3 l-12 -18 l-10 -24 M778 467 l-18 21 l15 36 l8 8 l-10 13 l10 -13 l-8 -9 l-15 -34 l21 -22 M489 1103 l23 43 l16 7 l0 17 l5 -4 l-4 2 l-2 -3 l3 -3 l-3 -1 l1 -9 l-15 -5 l-24 -43 M86 1113 l1 6 l-13 18 l-2 11 l5 3 l11 -4 l7 6 l13 0 l8 9 l-8 -9 l-12 0 l-7 -6 l-7 -1 l-5 4 l-5 -3 l-1 -4 l16 -23 l-1 -5 M714 640 l-7 12 l15 25 l-5 8 l-10 6 l1 12 l-7 14 l2 1 l5 -15 l-1 -11 l6 -3 l9 -12 l-15 -27 l7 -9 M590 1004 l11 20 l10 -2 l-2 11 l11 2 l-2 5 l-12 5 l-4 -5 l3 -6 l-3 4 l2 6 l15 -4 l1 -6 l-11 -2 l2 -10 l-10 1 l-11 -17 M87 944 l9 10 l-5 4 l-6 -5 l5 5 l6 -4 l6 2 l27 24 l6 0 l2 -16 l0 12 l-5 5 l-28 -24 l-9 -4 l-7 -9 M28 956 l-5 25 l21 4 l9 -13 l-10 13 l-20 -5 l3 -20 l4 -4 l24 14 l-22 -14 l-3 1 M1075 970 l-62 71 l64 -71 M208 647 l5 4 l-5 4 l14 18 l11 -8 l10 -2 l9 21 l-8 4 l9 -4 l-9 -21 l-11 2 l-9 7 l-14 -16 l3 -5 l-3 -4 M1108 644 l-6 3 l1 4 l23 23 l17 4 l-16 -4 l-24 -24 l2 -5 l29 26 l9 2 l2 5 l-1 -5 l-9 -2 M262 643 l-13 12 l2 12 l9 14 l11 -5 l-2 -28 l-6 -3 l6 4 l2 11 l-1 16 l-10 5 l-4 -4 l-7 -21 l12 -12 M1075 367 l28 36 l1 6 l9 9 l2 9 l11 15 l-12 -17 l-1 -8 l-9 -9 l-1 -6 l-27 -34 M73 330 l-47 37 l-26 14 l27 -14 l44 -35 M796 432 l48 75 l-47 -74 M672 347 l-30 14 l-4 -2 l-10 7 l-4 -1 l-5 8 l5 -7 l6 0 l4 -5 l8 0 l27 -11 l19 13 l-16 -11 l0 -4 M401 460 l-14 8 l-30 8 l-5 5 l-30 10 l83 -31 M315 627 l-16 8 l17 -8 l3 4 l-8 9 l-19 8 l-11 -4 l6 18 l-6 -17 l11 3 l20 -8 l7 -8 l-3 -5 M260 708 l-69 22 l-7 -3 l7 3 l69 -21 l5 4 l-4 -5 M432 242 l7 22 l-3 2 l4 2 l4 16 l-28 12 l-3 8 l5 -9 l26 -10 l-11 -42 M989 576 l-17 13 l-1 7 l3 3 l26 -11 l6 2 l-6 -3 l-26 12 l-2 -9 l17 -14 l6 0 l14 11 l-13 -11 M655 939 l8 6 l6 11 l-5 5 l-10 -15 l-6 5 l0 10 l5 8 l8 2 l-5 0 l-10 -15 l8 -8 l10 14 l-1 3 l1 -4 l5 -2 l-6 -15 l-6 -5 M291 1152 l-7 6 l5 13 l23 21 l-5 -9 l-9 -2 l-9 -11 l-2 -7 l3 -2 l-3 2 l-3 -4 l7 -7 l4 4 l-1 13 l7 8 l-7 -8 l2 -10 l-4 -6 M670 17 l23 77 l-6 4 l3 0 l3 -7 l-23 -73 M237 270 l-2 3 l15 39 l8 3 l7 -4 l6 9 l10 6 l1 -2 l-10 -4 l-7 -9 l-9 4 l-5 -2 l-16 -40 l3 -3 M460 180 l-29 11 l-7 -1 l7 1 l29 -11 l5 1 l4 4 l7 25 l-6 5 l1 4 l-1 -3 l6 -6 l-7 -26 l-7 -4 M1123 907 l5 10 l-3 -1 l-16 14 l16 -13 l25 24 l-12 16 l12 -12 l0 -5 l-23 -24 l-1 -6 M567 247 l2 6 l17 5 l5 8 l-37 15 l-5 8 l1 4 l7 -13 l29 -10 l6 -6 l-5 -6 l-12 -3 l-8 -6 M470 616 l-15 13 l-11 6 l-7 -4 l-7 8 l6 -6 l8 2 l12 -6 l14 -13 l30 18 l-28 -18 M929 30 l-33 54 l-7 -1 l-5 -5 l5 -5 l-6 6 l13 6 l7 -7 l26 -47 M264 964 l-8 11 l2 -2 l13 6 l3 -3 l7 8 l-7 5 l2 4 l5 -9 l-6 -6 l4 -3 l18 16 l-1 -4 l-17 -12 l-19 0 l-2 -3 l7 -7 M49 807 l-11 5 l3 2 l-1 6 l-38 52 l38 -51 l-1 -9 l12 -5 M671 751 l-16 19 l1 9 l10 17 l15 -5 l6 5 l2 7 l-1 -7 l-5 -5 l-17 4 l-11 -19 l0 -5 l17 -20 M560 185 l-36 12 l36 -12 l9 11 l16 -3 l8 -5 l6 2 l-6 -3 l-8 6 l-15 3 l-6 -10 l-3 0 M1059 649 l-3 4 l-9 1 l-1 5 l-43 54 l44 -58 l13 -5 M202 287 l-61 23 l61 -23 l6 1 l6 14 l-7 -15 M678 677 l-20 27 l13 29 l-2 10 l3 6 l-3 -9 l2 -8 l-11 -30 l21 -25 l-2 1 M716 212 l-7 7 l2 14 l6 6 l6 17 l12 -1 l-11 1 l-3 -3 l-3 -12 l-7 -9 l-2 -13 l8 -7 l6 6 l13 -5 l-12 5 l-5 -6 M1064 860 l-8 10 l51 55 l-50 -55 l7 -9 M374 210 l-4 4 l-6 0 l-2 5 l5 2 l-5 -3 l3 -4 l8 2 l11 34 l5 3 l16 -7 l-16 7 l-5 -4 l-12 -34 l2 -4 M162 346 l-12 5 l4 5 l-3 -4 l11 -6 l5 2 l0 10 l5 12 l-3 5 l-14 -16 l8 -3 l-1 -3 l-7 6 l10 15 l5 1 l2 -5 l-5 -12 l1 -12 M476 167 l-29 13 l14 -6 l11 5 l7 24 l-6 -23 l-9 -6 l5 -5 l11 -2 l1 3 l-8 4 l1 3 l7 -6 l0 -4 M1137 756 l-17 19 l12 11 l3 -1 l-10 -12 l9 10 l-1 3 l-13 -11 l19 -19 l12 11 l3 -1 l-2 -4 l2 3 l-3 2 l-12 -11 M627 544 l22 47 l8 24 l-2 4 l2 -4 l-20 -49 l0 -8 l-10 -13 M1015 19 l-15 13 l28 3 l19 -1 l6 -4 l-3 -8 l3 7 l-6 5 l-33 1 l-3 -3 l-10 0 l15 -12 M1095 402 l-6 7 l-5 -4 l3 -2 l-3 0 l4 6 l-4 4 l-6 -6 l-13 5 l13 -5 l6 6 l0 7 l-4 4 l20 -12 l-13 8 l-4 -1 l1 -6 l11 -7 l1 -4 M548 507 l-39 19 l-20 -5 l20 6 l39 -20 l15 9 l-14 -8 M139 860 l22 18 l15 18 l6 -2 l5 4 l6 -9 l3 -10 l-2 -2 l1 5 l-6 13 l-12 0 l-16 -18 l-12 -7 M116 553 l13 11 l4 9 l15 -16 l26 20 l-26 -21 l-15 16 l-4 -9 l-12 -10 M887 261 l0 28 l6 8 l-6 6 l22 30 l-22 -30 l6 -6 l-6 -8 l1 -28 M128 638 l-24 20 l-13 -9 l13 9 l24 -20 l22 19 l5 -3 l-6 2 l-20 -18 M1296 691 l-19 19 l17 -18 l14 12 l-21 23 l5 4 l2 -2 l-5 -4 l19 -18 l0 -4 l-10 -10 M277 715 l37 72 l-36 -72 M788 656 l-20 11 l22 -11 l6 13 l-18 12 l-4 -1 l-7 -11 l7 12 l4 1 l20 -15 l-7 -11 M238 933 l11 0 l41 32 l11 16 l-3 -9 l-49 -39 l-10 1 M262 392 l-19 25 l6 22 l-21 13 l9 -3 l14 -12 l-8 -19 l18 -25 M211 731 l-32 15 l-12 14 l-5 14 l5 -13 l14 -16 l30 -13 l7 10 l-5 -9 M1165 725 l-6 2 l-15 22 l13 -15 l12 13 l7 -2 l-3 -5 l0 7 l-10 -6 l-1 -3 l5 -3 l-3 -5 l0 7 l-7 -3 l4 -8 l5 0 M630 335 l-8 5 l-8 -1 l4 2 l9 -4 l7 19 l37 -13 l-37 12 l-5 -7 l0 -12 M1213 734 l-4 4 l4 7 l-3 3 l-9 -6 l11 7 l-3 4 l-6 -1 l-6 -10 l3 -5 l-3 9 l9 8 l-1 4 l2 -5 l8 0 l5 -6 l-5 6 l-4 -2 l4 -5 l-6 -7 l5 -4 M957 515 l-2 4 l32 31 l-2 4 l5 3 l4 -8 l-6 8 l-3 -3 l4 -3 l-34 -33 l4 -2 l7 6 l-8 -6 M990 903 l-5 17 l44 47 l-45 -49 l7 -14 M410 197 l-33 13 l27 -12 l10 -1 l10 17 l1 16 l4 4 l-4 -4 l-2 -19 l-8 -14 M15 903 l-9 2 l-6 12 l6 -12 l16 -1 l37 32 l1 -2 l-29 -24 l-13 -7 M1291 59 l-4 6 l2 7 l10 0 l6 7 l0 5 l13 6 l-12 -6 l-2 -8 l-7 -6 l-4 3 l-4 -2 l-2 -5 l4 -6 l20 11 l-19 -11 M24 147 l18 38 l11 -1 l21 -11 l-4 -3 l-5 7 l-13 7 l-9 1 l-18 -37 M157 790 l57 40 l3 6 l4 -1 l-45 -34 l-18 -10 M192 564 l5 4 l-5 17 l2 10 l-6 18 l-12 20 l15 -26 l3 -12 l-2 -10 l5 -18 l-4 -3 M960 918 l-26 19 l-11 -10 l-9 5 l14 10 l1 -3 l-3 3 l-10 -10 l4 -5 l14 11 l28 -20 M937 993 l38 41 l16 1 l6 4 l-5 -4 l-14 1 l-40 -43 M10 1054 l-5 6 l10 15 l-4 1 l-9 -13 l1 -3 l-1 4 l7 11 l7 0 l-10 -17 l4 -4 l12 16 l7 -1 l-8 0 l-10 -14 M84 1103 l3 3 l-51 57 l49 -53 l0 -7 M793 66 l-1 15 l-6 6 l2 7 l37 -10 l2 -7 l-4 8 l-35 8 l-2 -6 l6 -5 l2 -15 M423 1064 l23 62 l-3 9 l3 -9 l-22 -62 M1188 487 l-2 2 l8 5 l4 6 l-1 4 l5 4 l-7 6 l-15 -21 l18 28 l7 -4 l-6 2 l-4 -5 l9 -5 l-10 -16 M447 380 l-14 7 l18 -7 l5 8 l6 -1 l3 4 l-5 8 l7 14 l9 -3 l-7 2 l-9 -14 l7 -7 l-5 -4 l-5 1 l-5 -8 M470 676 l-11 10 l-6 -8 l10 15 l-4 1 l11 11 l-1 4 l1 -5 l-9 -8 l11 -6 l2 -5 l-2 -4 l2 6 l-9 6 l-6 -7 l11 -9 M1063 620 l-3 10 l4 6 l-6 6 l-5 -2 l-6 4 l-7 10 l-7 -2 l-4 -10 l7 14 l18 -15 l5 4 l-1 -3 l6 -6 l-4 -8 l4 -7 M544 1019 l-2 7 l8 17 l19 21 l-5 6 l-1 12 l2 -12 l5 -6 l-20 -22 l-8 -16 l2 -6 M233 582 l2 12 l14 33 l4 2 l18 -7 l0 -5 l-1 5 l-19 6 l-18 -43 M933 1093 l-38 40 l39 -40 l7 19 l-7 -19 M432 491 l-1 3 l-39 18 l42 -19 l15 24 l-16 -25 M859 1081 l-21 25 l2 6 l5 1 l23 -24 l-23 23 l-4 0 l-3 -5 l19 -23 l4 -1 M439 28 l-20 7 l9 12 l-6 -12 l17 -7 l5 6 l9 33 l-10 -36 l-3 -2 M918 4 l-27 51 l1 5 l10 6 l-11 -10 l27 -51 M677 937 l-7 8 l8 15 l-7 -15 l6 -7 l19 29 l12 -6 l-12 5 l-16 -26 M17 407 l28 49 l-5 3 l6 -3 l7 3 l2 -2 l-6 -3 l-5 1 l-26 -47 M595 564 l7 23 l16 33 l-22 -49 l1 -7 l6 9 l-2 2 l2 -2 l-5 -9 M684 1044 l-62 45 l63 -44 M462 217 l-3 3 l3 4 l15 -3 l11 36 l5 6 l-5 -6 l-11 -37 l-9 4 l-9 -3 l3 -3 l3 2 M228 824 l-5 12 l33 30 l-5 13 l4 -12 l5 -1 l-36 -30 l5 -11 M408 561 l-13 9 l-3 -1 l7 12 l5 0 l-5 3 l15 -6 l-10 3 l-4 -2 l19 -8 l-19 8 l-5 -9 l17 -9 M569 922 l-6 8 l-57 31 l58 -31 l5 -6 M765 1023 l-4 4 l12 18 l24 26 l-14 -19 l-11 -9 l-10 -16 l4 -4 l7 9 l-7 -9 M1079 769 l-17 20 l6 3 l9 -10 l12 -6 l12 11 l-10 -11 l-4 0 l-22 15 l-1 -3 l15 -16 M71 44 l-24 29 l-11 -3 l-15 7 l15 -7 l12 3 l23 -29 l3 3 l-2 4 l2 -2 l-2 -4 M1062 505 l13 20 l-23 19 l3 3 l-1 -5 l26 -18 l8 -10 l-12 11 l-14 -19 M513 338 l-10 8 l-39 15 l-4 6 l6 11 l-5 -11 l4 -6 l50 -21 M781 845 l-3 5 l1 9 l29 42 l-4 8 l4 -8 l-29 -43 l-1 -8 l4 -5 M464 136 l-8 29 l-13 12 l-25 10 l26 -10 l12 -11 l8 -28 M752 627 l-17 17 l0 4 l22 32 l-1 -3 l5 0 l-9 -2 l-12 -24 l-5 -4 l10 -15 l8 -5 M236 129 l-16 11 l-12 -1 l-3 8 l10 0 l9 -10 l10 4 l9 -8 l-10 8 l-8 -4 l11 -8 l11 3 l-4 -3 M1069 100 l-19 15 l19 -15 l6 9 l-25 15 l-6 -3 l6 6 l-2 -2 l27 -16 l-4 -9 M341 647 l-10 9 l-25 8 l-4 4 l8 1 l15 -6 l5 1 l-5 -1 l-15 6 l-6 -2 l28 -11 l10 -9 M100 0 l1 21 l7 21 l-2 4 l8 6 l13 -4 l-13 4 l-6 -5 l-7 -26 l-1 -20 M666 532 l-30 13 l-4 -3 l0 6 l35 -16 l12 20 l6 4 l-18 -24 M214 774 l20 38 l13 14 l-15 -18 l9 -9 l-9 8 l-18 -31 M382 631 l-3 5 l1 7 l5 4 l0 6 l24 42 l-29 -53 l-1 -6 l4 -5 M685 605 l5 9 l-6 3 l8 1 l8 12 l-1 4 l-8 3 l2 8 l0 -10 l6 -1 l2 -5 l6 3 l-13 -11 l6 -5 l-6 4 l-5 -5 l1 -7 l-3 -1 M1316 353 l-12 44 l0 11 l7 5 l7 -1 l-9 0 l-5 -4 l0 -11 l7 -32 l7 -12 M194 744 l-15 14 l-3 -1 l3 1 l16 -13 l17 28 l0 -3 l8 -5 l0 -6 l0 5 l-8 6 l-17 -26 M55 383 l-17 10 l17 -9 l15 26 l8 0 l12 -8 l-11 7 l-9 1 l-14 -26 M68 969 l43 40 l12 3 l-11 -3 l-44 -39 M384 1024 l-3 10 l7 7 l-2 3 l-12 -10 l1 -5 l-2 5 l12 10 l-6 12 l6 -10 l13 -10 l-9 6 l-8 -9 l4 -9 M994 794 l6 12 l-13 -3 l2 6 l9 7 l-1 5 l-7 6 l7 -5 l1 -9 l6 1 l-10 -1 l-7 -8 l4 -3 l6 6 l3 -1 l-7 -11 l2 -2 M1100 1025 l-10 13 l14 -13 l31 24 l11 13 l-10 -13 l-32 -24 M790 101 l-4 1 l0 5 l9 3 l26 2 l5 -4 l-1 -2 l-4 6 l-26 -2 l-10 -6 l5 -3 l22 1 l-21 0 M1076 975 l6 12 l15 14 l4 -1 l5 -7 l-5 -13 l-10 -5 l6 2 l9 11 l-7 13 l-17 -15 l-5 -11 M462 837 l17 35 l16 22 l0 6 l-1 -8 l-14 -19 l-18 -35 M321 1010 l-11 14 l-14 10 l7 22 l8 -7 l-2 -5 l0 7 l-7 3 l-4 -20 l23 -22 M840 677 l2 9 l1 -2 l7 10 l-3 1 l4 1 l-3 4 l2 -2 l8 12 l-5 2 l-10 -13 l10 13 l5 -1 l-9 -21 l-9 -12 M94 923 l45 40 l2 -4 l10 -1 l-13 3 l-43 -38 M1296 1158 l-30 34 l30 -34 l20 16 l2 -2 l-21 -13 M239 394 l-14 7 l10 -4 l2 3 l-3 3 l-31 12 l-4 -3 l1 -6 l-1 7 l4 4 l1 -3 l32 -12 l3 -3 l-4 -2 l5 -2 M286 826 l6 28 l11 12 l10 0 l11 6 l2 -5 l-4 4 l-9 -5 l-9 0 l-13 -15 l1 -7 l-6 -17 M608 609 l8 17 l-2 1 l9 14 l-28 16 l28 -14 l-14 -34 M1202 1125 l0 4 l22 19 l-7 9 l-4 0 l-12 -17 l4 10 l12 8 l5 -8 l4 -1 l-25 -23 M340 311 l-20 15 l-21 8 l-9 -5 l-6 -9 l4 8 l11 6 l25 -10 l17 -13 M747 636 l16 27 l35 -17 l-1 -2 l-34 18 l-15 -26 M951 669 l-19 10 l4 2 l-1 4 l4 -9 l3 3 l-2 6 l3 -5 l-3 -4 l6 -3 l1 6 l0 -6 l6 -4 l-2 14 l-8 5 l6 -2 l6 -17 M611 774 l-11 7 l12 -6 l20 40 l5 2 l5 -5 l-5 4 l-6 -3 l-19 -38 M404 1044 l-17 13 l1 21 l-1 -20 l18 -14 l6 5 l5 13 l6 -1 l-5 1 l-6 -14 l-6 -4 M429 688 l10 1 l25 41 l3 2 l10 -4 l-11 3 l-27 -43 l-7 0 M1269 923 l-24 24 l-3 7 l2 2 l1 -8 l24 -24 l8 4 l14 15 l-12 -14 l-9 -5 M198 652 l-5 5 l-10 26 l6 15 l2 -2 l-8 -13 l15 -31 l2 9 l6 7 l-6 -7 l1 -6 M97 912 l54 43 l-33 -27 l2 -1 l-3 1 l-19 -15 M279 246 l0 8 l15 33 l24 -7 l-23 7 l-17 -36 l1 -4 M550 988 l10 24 l7 6 l5 11 l6 1 l-5 -14 l6 11 l-2 3 l-5 -2 l-10 -14 l-13 -25 M1147 976 l7 5 l1 7 l13 11 l9 -11 l6 -1 l5 8 l-1 9 l2 -5 l-4 -11 l-10 1 l-8 9 l-12 -11 l-1 -7 l-6 -3 M496 1015 l-6 6 l-14 3 l-22 15 l-17 5 l1 3 l38 -23 l8 0 l13 -8 M603 158 l4 9 l17 -2 l1 3 l-36 11 l38 -11 l-3 -3 l-15 2 l-5 -9 M881 992 l-11 13 l-4 -3 l4 4 l13 -14 l10 2 l8 7 l4 15 l-6 5 l4 0 l2 -9 l-5 -13 l-4 -4 l-14 -2 M44 1045 l7 2 l3 6 l-2 -2 l4 -5 l6 3 l8 15 l-4 6 l-10 0 l-5 -4 l2 -1 l-1 3 l14 2 l4 -9 l-8 -8 l-2 -7 l-8 2 l-4 -3 M424 509 l-17 6 l-10 8 l-15 3 l11 -1 l31 -16 l19 10 l-16 -10 M1085 521 l1 5 l-16 14 l-8 3 l-16 18 l0 4 l6 3 l-6 -7 l18 -19 l7 -2 l14 -12 l1 -7 M19 671 l54 48 l-53 -48 M142 1040 l-32 31 l32 -29 l22 21 l-14 -15 M1035 351 l19 25 l10 0 l1 12 l8 10 l-9 -13 l3 -6 l-4 -5 l-8 2 l-17 -22 M180 635 l-5 24 l-15 40 l20 -62 M63 45 l-63 23 l65 -23 M978 1139 l-44 53 l45 -52 M112 423 l-8 13 l-33 21 l-1 5 l6 4 l-6 -7 l36 -24 l7 -11 M1138 586 l-6 7 l27 30 l-10 -10 l4 -11 l-4 8 l-17 -18 l10 -6 M200 621 l-6 23 l-7 5 l6 -3 l9 -24 l6 5 l-2 13 l-6 11 l2 -1 l6 -23 l-8 -5 M391 1077 l8 28 l8 8 l8 1 l-8 14 l8 -15 l-6 1 l-10 -11 l-7 -26 M1202 342 l-17 22 l8 2 l5 -3 l8 -16 l-10 17 l-7 2 l-3 -5 l14 -18 l8 1 l-5 -1 M86 921 l-12 14 l-8 4 l2 -2 l9 10 l19 -18 l-3 0 l-13 17 l-11 -8 l18 -17 M1082 656 l-8 7 l8 14 l16 2 l5 -3 l-5 3 l-9 -2 l0 -5 l-9 -8 l9 11 l-4 3 l-4 -2 l-7 -12 l9 -8 M727 899 l-10 5 l2 3 l-5 6 l5 -6 l15 27 l6 4 l1 -2 l-7 -3 l-15 -27 l5 -6 l8 6 l-2 -4 M44 229 l12 6 l28 46 l-29 -48 l-10 -3 M848 1023 l0 5 l-18 20 l-5 -1 l-10 11 l-14 -8 l10 9 l4 0 l11 -12 l4 1 l6 -4 l12 -16 M909 502 l-9 5 l15 14 l13 20 l3 -2 l6 6 l-12 -8 l0 -4 l-22 -26 l8 -5 M508 426 l-54 20 l-5 7 l6 -7 l54 -20 M246 25 l-62 23 l63 -22 M1143 197 l-15 16 l1 6 l4 1 l10 -8 l1 -8 l1 3 l-5 1 l3 3 l-8 8 l-5 0 l-2 -4 l13 -16 l6 -2 l6 3 l-6 -3 M835 420 l32 49 l10 5 l-10 -6 l-28 -44 M1258 963 l-23 27 l2 1 l8 -14 l13 -13 l18 17 l6 2 l-24 -19 M280 881 l-2 3 l8 7 l-3 4 l3 -4 l3 3 l-6 -6 l6 -5 l34 13 l-44 -14 M1193 419 l-12 21 l0 4 l3 3 l3 -2 l1 4 l7 -12 l-7 9 l-4 0 l-3 -6 l9 -18 l6 -3 l11 6 l-10 -6 M264 867 l13 11 l-17 5 l-4 -4 l4 -5 l5 5 l-5 -6 l2 -3 l-6 11 l6 3 l-2 4 l5 -6 l12 -3 l-1 -4 l-11 -8 M910 526 l-5 13 l17 31 l9 7 l-9 -8 l-1 -7 l-17 -26 l7 -10 M150 401 l-14 9 l-2 10 l-14 9 l-5 11 l6 -10 l13 -9 l4 -12 l12 -8 l6 5 l3 -1 l-8 -3 M383 338 l1 15 l6 7 l-4 4 l-7 -3 l-6 -15 l-7 -4 l7 5 l7 16 l6 3 l4 -7 l-6 -7 l-1 -13 M452 966 l14 31 l9 7 l4 12 l5 3 l-5 -4 l-1 -8 l-12 -11 l-15 -29 M1174 218 l11 1 l8 6 l-10 25 l-5 4 l-4 0 l-5 -6 l4 6 l7 -1 l13 -28 l-3 -4 l-14 -3 M1303 414 l0 5 l-3 0 l8 41 l8 14 l2 -1 l-10 -13 l-4 -17 l0 -28 M605 1065 l-5 6 l4 14 l-4 -9 l2 -7 l4 -1 l5 6 l7 -3 l4 4 l-16 10 l17 -9 l-5 -5 l-7 2 l-5 -7 M149 918 l-14 17 l22 17 l5 -8 l5 2 l-7 -6 l15 -15 l-11 8 l-15 -13 M815 1068 l-8 7 l-8 1 l-9 26 l8 -24 l3 -3 l4 3 l-4 15 l4 -17 l11 -8 M1157 719 l-43 51 l44 -50 M443 673 l25 44 l-5 3 l5 7 l-4 -5 l4 -5 l-23 -42 M931 1132 l-36 38 l-6 11 l5 -9 l38 -40 M877 924 l-13 37 l-7 10 l-10 7 l6 -2 l9 -11 l15 -39 M336 1003 l4 9 l-6 5 l3 2 l0 7 l-7 -1 l0 -8 l-5 -4 l13 21 l3 -2 l-1 -4 l-2 6 l-4 -4 l1 -4 l3 1 l0 -22 M640 7 l5 20 l-5 -13 l1 -7 l4 1 l8 19 l-7 2 l-2 8 l-1 -4 l10 -6 l-8 -19 l-4 -1 M183 436 l-48 27 l1 3 l-4 4 l29 -24 l23 -10 M523 738 l18 40 l-4 4 l9 8 l-7 -8 l3 -3 l-19 -40 M578 44 l14 62 l-13 -61 M330 230 l-37 18 l-8 -4 l-4 -12 l-1 2 l5 11 l8 3 l36 -17 M688 1139 l-22 30 l12 23 l-11 -24 l21 -28 M138 170 l-10 7 l-1 6 l1 4 l8 4 l13 -7 l-14 6 l-7 -4 l0 -8 l10 -8 l5 0 l5 4 l0 8 l1 -8 l-6 -4 M336 956 l-26 27 l27 -27 l3 3 l-6 9 l-2 -2 l10 8 l-7 -6 l4 -12 M911 27 l-14 26 l0 5 l8 4 l-7 -4 l-1 -4 l11 -18 l7 4 l-7 -4 l2 -4 l9 4 l-6 -2 l-2 -5 M43 611 l-15 6 l2 7 l-6 9 l8 13 l-8 -13 l7 -9 l-2 -7 l16 -6 l7 7 l-8 -6 M0 93 l13 28 l11 13 l4 13 l-8 -21 l-7 -5 l-12 -27 M452 157 l-56 23 l59 -23 M226 214 l-13 18 l7 6 l-5 6 l12 -13 l-8 6 l-4 -4 l11 -17 l6 4 l-1 6 l0 -8 l-5 -2 M0 764 l45 36 l-1 6 l3 -1 l-8 -12 l-35 -29 M850 1001 l-13 9 l-8 1 l-11 10 l-7 -2 l4 4 l32 -21 l12 8 l-8 -8 M1 154 l21 40 l-10 6 l2 4 l-1 -4 l9 -6 l-20 -40 M562 28 l0 22 l11 0 l3 -2 l-12 3 l-3 -11 l5 -6 l4 9 l6 -1 l0 -12 l-2 -2 l-9 7 l-3 -5 M888 62 l-14 32 l13 8 l-12 -9 l11 -26 l11 -1 l-3 2 l-6 -2 l0 -3 M901 1035 l5 9 l-18 16 l0 7 l-13 16 l13 -15 l3 -8 l15 -15 l-4 -10 M246 508 l4 8 l-6 3 l-13 -3 l2 1 l-5 4 l-5 12 l10 -16 l11 3 l9 -5 l6 1 l-8 0 l-3 -6 M221 598 l-6 9 l-2 11 l5 17 l11 13 l0 4 l2 -4 l-6 -3 l-7 -11 l-5 -16 l1 -8 l7 -11 M635 1139 l-33 53 l34 -52 M37 256 l-5 9 l11 7 l-10 -7 l5 -6 l17 24 l8 1 l-10 -3 l-15 -24 M923 890 l19 20 l-1 3 l-5 0 l-17 -19 l15 18 l11 0 l-16 -16 M243 693 l-56 17 l59 -17 M354 870 l30 52 l-29 -52 M1180 632 l-10 9 l8 13 l16 -12 l-15 11 l-8 -12 l9 -8 l7 11 l-6 -11 M960 956 l-14 23 l-24 26 l23 -24 l15 -24 M1215 342 l-7 16 l8 -16 l5 9 l-12 27 l3 -1 l8 -21 l1 -9 l-4 -5 M1168 199 l-21 31 l-9 -6 l7 -6 l3 3 l-4 -4 l-5 5 l0 5 l9 3 l17 -28 M380 510 l-20 8 l26 -8 l4 3 l-25 8 l15 -6 l6 4 l-2 -2 l7 -3 l-5 -4 M984 148 l-20 18 l17 -17 l7 2 l-2 8 l-13 18 l13 -17 l2 -10 l-3 -1 M1134 297 l-6 20 l-10 9 l-6 -5 l5 -7 l4 2 l4 -3 l-4 3 l-4 -3 l-5 10 l3 3 l6 -1 l6 -6 l7 -19 M446 0 l5 25 l10 11 l-2 11 l4 9 l-4 -9 l2 -12 l-10 -11 l-5 -23 M860 15 l-27 54 l27 -53 M281 1150 l-20 8 l-16 16 l-5 2 l-5 -3 l1 -3 l-1 4 l9 1 l18 -17 l18 -7 M472 919 l-7 6 l8 -6 l7 0 l6 6 l2 9 l15 26 l-17 -35 l-6 -6 M869 333 l21 23 l3 9 l14 -7 l-5 -3 l0 6 l-9 3 l-3 -9 l-20 -21 M577 325 l-14 5 l19 -5 l10 11 l-7 0 l-6 -7 l-10 4 l10 -3 l5 6 l8 0 l0 -4 l-9 -7 M397 954 l-8 31 l12 20 l-1 3 l1 -3 l-12 -21 l5 -9 l3 -20 M771 949 l-22 18 l2 3 l-6 4 l-1 5 l7 -9 l7 10 l5 -1 l21 -16 l-6 -10 l-6 -3 M309 347 l-36 16 l0 16 l4 -19 l35 -13 M811 1173 l-7 7 l-11 1 l-9 9 l13 -11 l8 1 l8 -7 l12 11 l-4 8 l4 -8 l-12 -11 M1060 785 l-8 10 l-8 0 l1 3 l-11 4 l-2 -4 l4 -4 l10 -1 l-4 -4 l-11 11 l7 2 l11 -5 l11 -11 M173 943 l-37 48 l38 -47 M734 257 l-8 8 l3 11 l4 2 l14 -7 l-11 -11 l5 3 l4 10 l-11 5 l-5 -3 l-3 -9 l10 -9 M234 232 l4 13 l-8 8 l3 5 l22 -21 l-22 20 l-2 -4 l7 -8 l-1 -10 M509 710 l-22 15 l-3 -5 l-5 -1 l2 9 l8 0 l-5 2 l-5 -6 l1 -5 l5 3 l1 5 l23 -17 l2 2 M1297 682 l-24 25 l24 -25 l5 1 l16 16 l-18 -17 M1150 857 l11 11 l-4 4 l-9 -1 l-7 5 l-12 -12 l14 12 l6 -5 l7 2 l6 -5 l-7 -10 l-3 1 M510 333 l-26 13 l-7 -4 l-11 2 l-7 8 l8 -8 l9 -2 l3 4 l5 0 l26 -12 M94 84 l-16 10 l-10 -2 l-3 4 l4 -4 l10 2 l5 -5 l13 -4 l11 18 l-9 -17 l-4 -2 M37 592 l-21 32 l-16 -9 l16 10 l11 -21 l11 -11 M258 1129 l-5 4 l3 4 l-3 5 l2 6 l-2 -6 l5 -4 l-5 -5 l5 -4 l5 4 l-5 18 l3 -9 l6 2 l-6 -3 l2 -8 l-3 -4 M118 891 l49 37 l-48 -36 M217 325 l-48 19 l48 -19 l2 6 l-1 -5 M936 529 l-4 3 l-6 -1 l7 1 l12 13 l6 -4 l2 3 l3 -2 l-3 1 l-13 -14 l10 12 l-5 4 l-12 -13 l5 -3 M713 963 l-3 2 l7 -2 l11 16 l-26 20 l23 -15 l4 -6 l-11 -15 M1149 308 l-18 18 l-4 10 l2 4 l11 -2 l-1 -3 l-9 5 l-3 -4 l2 -4 l5 3 l-5 -3 l2 -5 l18 -18 M1010 3 l-11 4 l-2 5 l7 1 l-7 -3 l13 -7 l7 0 l4 3 l19 -1 l4 8 l-4 -8 l-18 1 l-4 -3 M730 195 l-15 8 l-4 -3 l7 -4 l-9 4 l5 7 l8 -1 l-7 1 l-2 -3 l4 -3 l17 2 l-10 -2 l7 -5 M271 992 l6 9 l-7 12 l2 5 l6 -1 l6 -7 l6 3 l0 5 l0 -5 l-4 -3 l-9 7 l-7 -4 l7 -7 l-5 -14 M263 160 l-8 5 l-6 9 l-2 10 l5 11 l-5 4 l-6 -7 l3 6 l8 -3 l-5 -11 l2 -9 l5 -8 l9 -6 M168 34 l-39 15 l39 -14 l8 15 l-6 -14 M1222 792 l-9 11 l1 3 l7 3 l7 -3 l11 9 l-3 -4 l2 -1 l-3 1 l-9 -7 l-4 5 l-8 -4 l7 -10 l8 1 l-7 0 l0 -3 M414 695 l0 13 l10 10 l1 9 l15 22 l-9 -13 l-1 -7 l-5 -3 l-1 -8 l-10 -11 M236 523 l-4 5 l8 8 l14 -6 l-14 6 l-8 -8 l2 -4 l20 2 l-3 -1 l2 -2 l-4 3 l-12 -3 M1064 896 l6 6 l-2 8 l5 0 l-6 -2 l5 -5 l21 25 l-28 -31 M429 894 l-39 25 l-5 7 l3 0 l-2 -2 l46 -30 M281 1079 l-3 2 l0 6 l8 10 l-3 2 l-10 -11 l2 2 l-3 3 l2 -2 l11 8 l1 -5 l-8 -11 l4 -2 l7 4 l1 -3 l-5 1 l-3 -3 M589 658 l-22 11 l2 1 l-13 9 l35 -21 l5 8 l4 -2 l-4 1 l-6 -6 M58 809 l-14 12 l2 5 l-7 7 l3 11 l-5 9 l5 -8 l-4 -9 l7 -7 l0 -8 l7 -9 l6 -2 M94 706 l9 9 l-4 17 l-3 -3 l1 -11 l-4 -4 l-6 2 l6 -1 l4 4 l-1 10 l3 4 l4 -18 l-7 -9 M304 894 l-3 1 l-1 7 l9 7 l7 -1 l9 -9 l-11 10 l-4 0 l-10 -11 l3 -2 l12 6 l-12 -7 M389 113 l11 19 l-4 7 l-11 -6 l5 -12 l-5 13 l11 5 l6 -6 l-11 -18 M1107 785 l-8 10 l-13 7 l-3 -3 l2 -3 l-2 4 l4 2 l21 -17 l7 11 l6 3 l-12 -14 M217 944 l-9 4 l-6 8 l7 -8 l12 -4 l5 6 l-1 7 l11 2 l4 8 l-3 -8 l-12 -3 l1 -6 l-4 -6 M311 1057 l6 7 l2 14 l-15 6 l-4 8 l6 -1 l-5 -1 l5 -7 l14 -5 l-3 -15 l-5 -6 M292 169 l-10 6 l4 8 l-4 -6 l10 -8 l8 1 l4 8 l-2 12 l-7 8 l7 -7 l2 -8 l-2 -12 l-3 -2 M700 898 l-7 5 l-3 -2 l1 3 l-31 15 l-5 -4 l5 4 l42 -21 M1017 331 l-1 9 l10 10 l-9 -9 l0 -8 l6 -1 l9 16 l-7 7 l7 -8 l-10 -16 M714 497 l9 4 l14 36 l6 5 l-8 -10 l-12 -32 l-8 -3 M1025 513 l20 27 l20 -14 l-20 12 l-20 -24 M193 507 l-3 3 l2 10 l-4 4 l-6 28 l-5 -2 l2 4 l3 -1 l5 -25 l5 -7 l0 -13 M715 1097 l11 12 l-1 4 l-11 5 l-15 13 l16 -13 l14 -6 l-5 0 l3 -3 l-11 -11 M351 280 l16 32 l-4 13 l3 1 l-1 3 l2 -18 l-16 -30 M1062 918 l-5 6 l17 15 l-16 -15 l4 -5 l15 15 l-1 5 l2 -5 l-15 -15 M345 91 l-2 2 l17 41 l6 6 l-7 -9 l-16 -38 l2 -1 M1055 1146 l-13 35 l11 11 l-10 -14 l7 -13 l1 -9 l6 -5 l-2 -3 M220 189 l5 6 l-7 3 l-9 11 l-7 -1 l-1 -4 l6 -3 l-5 1 l-1 6 l9 3 l12 -15 l6 4 l-7 -10 M600 460 l4 20 l9 11 l-2 10 l6 3 l2 -4 l-3 4 l-5 -3 l2 -10 l-9 -12 l-4 -17 M284 702 l10 24 l13 7 l6 13 l-7 -15 l-7 -1 l-5 -5 l-9 -22 M832 201 l4 8 l4 38 l8 3 l-8 -4 l-4 -37 l-4 -7`);
+    plano.appendChild(secundarios);
+
+    // Líneas de costa, Plaza Sotomayor y explanadas que sirven como
+    // orientación; los espacios abiertos permanecen blancos.
+    const limites = [
+      // Borde de la dársena, al oriente del muelle.
+      'M 865 -10 L 865 56 L 882 102 L 924 163 L 971 239 L 1000 302 L 1046 380 L 1100 456 L 1183 524 L 1317 614',
+      // Borde norte del paseo peatonal en torno a la explanada portuaria.
+      'M 941 487 L 1012 548 L 1075 608 L 1179 694 L 1268 757',
+      // Vereda del monumento: rectángulo octogonal real del plano.
+      'M 784 814 L 844 793 L 883 822 L 904 871 L 848 919 L 785 897 L 766 854 Z'
+    ];
+    limites.forEach((d,i) => {
+      const node = document.createElementNS(SVG,'path');
+      node.setAttribute('d',d);
+      node.setAttribute('class',i===2?'contorno-monumento':'trazo-borde');
+      plano.appendChild(node);
+    });
+
+    // La capa de color se construye en el segundo script directamente en SVG,
+    // usando los resultados de cada lugar sin halos cromáticos externos.
+    function activarEspacio(id, activo) {
+      document.querySelectorAll(`[data-resaltado="${id}"]`).forEach(el => {
+        el.classList.toggle('activo', activo);
+      });
+    }
+
+    // Los polígonos y las calles siguen siendo clicables e interactivos
+    espacios.forEach(espacio => {
+      const grupo = elementoSVG('g', {'class':'zona-interactiva', 'data-lugar':espacio.id});
+      const area = espacio.tipo === 'area';
+      const atributos = area
+        ? {d:espacio.d, fill:'transparent'}
+        : {d:espacio.d, fill:'none', stroke:'transparent',
+           'stroke-width':Math.max(espacio.ancho+42,62),
+           'stroke-linecap':'round', 'stroke-linejoin':'round'};
+      const hit = elementoSVG('path', {
+        ...atributos, 'class':'zona-interaccion',
+        tabindex:0, role:'button',
+        'aria-label':`${espacio.nombre}: ${espacio.apertura} apertura y ${espacio.contencion} contención`
+      });
+      grupo.appendChild(hit);
+      colores.appendChild(grupo);
+      hit.addEventListener('pointerenter', ev => {
+        if (!detalleFijo) mostrarDetalle(espacio, ev);
+        activarEspacio(espacio.id, true);
+      });
+      hit.addEventListener('pointermove', ev => moverDetalle(ev));
+      hit.addEventListener('pointerleave', () => {
+        if (!detalleFijo) {
+          ocultarDetalle();
+          activarEspacio(espacio.id, false);
+        }
+      });
+      hit.addEventListener('click', ev => {
+        if (apuntadorMovido) return;
+        ev.stopPropagation();
+        espacios.forEach(e => activarEspacio(e.id, false));
+        detalleFijo = false;
+        mostrarDetalle(espacio, ev);
+        detalleFijo = true;
+        activarEspacio(espacio.id, true);
+      });
+      hit.addEventListener('keydown', ev => {
+        if(ev.key==='Enter'||ev.key===' '){
+          ev.preventDefault();
+          espacios.forEach(e => activarEspacio(e.id, false));
+          detalleFijo=false;
+          mostrarDetalle(espacio,null);
+          detalleFijo=true;
+          activarEspacio(espacio.id, true);
+        }
+      });
+      const et = elementoSVG('text',{
+        x:espacio.etiqueta.x, y:espacio.etiqueta.y,
+        'class':'etiqueta',
+        'text-anchor':espacio.etiqueta.centrado?'middle':'start',
+        ...(espacio.etiqueta.rotar ? {
+          transform:`rotate(${espacio.etiqueta.rotar} ${espacio.etiqueta.x} ${espacio.etiqueta.y})`
+        } : {})
+      });
+      et.textContent=espacio.etiqueta.texto;
+      etiquetas.appendChild(et);
+    });
+
+    let detalleFijo = false;
+    let apuntadorMovido = false;
+    function porcentaje(cantidad) {
+      return Number((cantidad / total * 100).toFixed(1)).toLocaleString('es-CL') + '%';
+    }
+    function mostrarDetalle(e, evento) {
+      if (apuntadorMovido) return;
+      document.getElementById('detalle-lugar').textContent = e.nombre;
+      document.getElementById('valor-apertura').textContent = porcentaje(e.apertura);
+      document.getElementById('valor-contencion').textContent = porcentaje(e.contencion);
+      document.getElementById('detalle-explicacion').textContent =
+        `${e.apertura} de ${total} personas perciben apertura; ` +
+        `${e.contencion} de ${total} personas perciben contención.`;
+      document.getElementById('barra-apertura').style.width = `${e.apertura / total * 100}%`;
+      document.getElementById('barra-contencion').style.width = `${e.contencion / total * 100}%`;
+      detalle.hidden = false;
+      if (evento) moverDetalle(evento);
+      else { detalle.style.left = '50%'; detalle.style.top = '24px'; }
+    }
+    function moverDetalle(evento) {
+      if (detalle.hidden || detalleFijo || apuntadorMovido) return;
+      const r = visor.getBoundingClientRect();
+      const ancho = detalle.offsetWidth || 216;
+      const alto = detalle.offsetHeight || 172;
+      const x = Math.min(Math.max(12,r.width - ancho - 12), Math.max(12, evento.clientX - r.left + 17));
+      const y = Math.min(Math.max(12,r.height - alto - 12), Math.max(12, evento.clientY - r.top + 15));
+      detalle.style.left = `${x}px`;
+      detalle.style.top = `${y}px`;
+    }
+    function ocultarDetalle() { detalle.hidden = true; }
+
+    // Cámara 100% pantalla: encuadre de cobertura sin marco cuadrado.
+    // En escritorio se ve desde la Plaza Echaurren hasta Sotomayor.
+    // En móvil se puede recorrer horizontalmente sin salir del sector.
+    let zoom = 1;
+    let centro = {x: 659, y: 608};
+    let vista = {ancho: 1510, alto: 1050};
+    const ZOOM_MAX = 6;
+    const cursores = new Map();
+    let arrastre = null;
+    let pellizco = null;
+    const LIMITES = {minX:-200,maxX:1519,minY:-90,maxY:1283};
+
+    function dimensiones(z = zoom) {
+      const r = visor.getBoundingClientRect();
+      // COVER: ocupa toda la pantalla y no agrega franjas o un cuadrado.
+      const base = Math.max(r.width/1695, r.height/1080);
+      const escala = base*z;
+      return {ancho:r.width/escala, alto:r.height/escala};
+    }
+    function pintarCamara() {
+      vista = dimensiones();
+      const {ancho,alto} = vista;
+      const anchura = LIMITES.maxX-LIMITES.minX;
+      const altura = LIMITES.maxY-LIMITES.minY;
+      centro.x = ancho>=anchura ? (LIMITES.minX+LIMITES.maxX)/2 : Math.max(LIMITES.minX+ancho/2, Math.min(LIMITES.maxX-ancho/2,centro.x));
+      centro.y = alto>=altura ? (LIMITES.minY+LIMITES.maxY)/2 : Math.max(LIMITES.minY+alto/2, Math.min(LIMITES.maxY-alto/2,centro.y));
+      svg.setAttribute('viewBox',[centro.x-ancho/2,centro.y-alto/2,ancho,alto].join(' '));
+      document.getElementById('alejar').disabled = zoom<=1.001;
+      document.getElementById('acercar').disabled = zoom>=ZOOM_MAX;
+    }
+    function coordenadaPantalla(cx, cy) {
+      const r = svg.getBoundingClientRect();
+      const fx = (cx - r.left) / r.width;
+      const fy = (cy - r.top) / r.height;
+      return {x: centro.x + (fx - 0.5) * vista.ancho, y: centro.y + (fy - 0.5) * vista.alto, fx, fy};
+    }
+    function cambiarZoom(nuevoZoom, cx, cy) {
+      const ancla = coordenadaPantalla(cx ?? innerWidth / 2, cy ?? innerHeight / 2);
+      zoom = Math.max(1, Math.min(ZOOM_MAX, nuevoZoom));
+      const d = dimensiones();
+      centro.x = ancla.x - (ancla.fx - 0.5) * d.ancho;
+      centro.y = ancla.y - (ancla.fy - 0.5) * d.alto;
+      pintarCamara();
+    }
+    function restablecer() {
+      zoom = 1;
+      centro = {x:659,y:608};
+      ocultarDetalle(); detalleFijo = false;
+      pintarCamara();
+    }
+    document.getElementById('acercar').addEventListener('click', () => cambiarZoom(zoom * 1.28));
+    document.getElementById('alejar').addEventListener('click', () => cambiarZoom(zoom / 1.28));
+    document.getElementById('reiniciar').addEventListener('click', restablecer);
+
+    visor.addEventListener('wheel', ev => {
+      if (ev.target.closest('.leyenda, .controles, .detalle')) return;
+      ev.preventDefault();
+      cambiarZoom(zoom * Math.exp(-ev.deltaY * 0.0013), ev.clientX, ev.clientY);
+    }, {passive: false});
+
+    svg.addEventListener('pointerdown', ev => {
+      if (ev.button !== 0 && ev.pointerType === 'mouse') return;
+      svg.setPointerCapture(ev.pointerId);
+      cursores.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
+      apuntadorMovido = false;
+      if (cursores.size === 1) {
+        arrastre = {x: ev.clientX, y: ev.clientY, inicioX: ev.clientX, inicioY: ev.clientY};
+        pellizco = null;
+      } else if (cursores.size === 2) {
+        const [p1,p2] = [...cursores.values()];
+        pellizco = {distancia: Math.hypot(p2.x - p1.x, p2.y - p1.y), zoom};
+        arrastre = null;
+      }
+    });
+    svg.addEventListener('pointermove', ev => {
+      if (!cursores.has(ev.pointerId)) return;
+      const prev = cursores.get(ev.pointerId);
+      cursores.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
+      if (cursores.size === 2 && pellizco) {
+        const [a,b] = [...cursores.values()];
+        const distancia = Math.hypot(b.x - a.x,b.y - a.y);
+        apuntadorMovido = true;
+        cambiarZoom(pellizco.zoom * distancia / pellizco.distancia, (a.x+b.x)/2, (a.y+b.y)/2);
+        return;
+      }
+      if (arrastre && cursores.size === 1) {
+        const dx = ev.clientX - prev.x;
+        const dy = ev.clientY - prev.y;
+        if (Math.hypot(ev.clientX - arrastre.inicioX, ev.clientY - arrastre.inicioY) > 5) {
+          apuntadorMovido = true;
+          ocultarDetalle();
+          centro.x -= dx * vista.ancho / visor.clientWidth;
+          centro.y -= dy * vista.alto / visor.clientHeight;
+          pintarCamara();
+          svg.classList.add('arrastrando');
+        }
+      }
+    });
+    function finalizarPuntero(ev) {
+      cursores.delete(ev.pointerId);
+      svg.classList.remove('arrastrando');
+      if (cursores.size === 0) { arrastre = null; pellizco = null; }
+      else if (cursores.size === 1) {
+        const p = [...cursores.values()][0];
+        arrastre = {...p, inicioX: p.x, inicioY: p.y};
+        pellizco = null;
+      }
+    }
+    svg.addEventListener('pointerup', finalizarPuntero);
+    svg.addEventListener('pointercancel', finalizarPuntero);
+    svg.addEventListener('click', ev => {
+      if (!ev.target.closest('.zona-interaccion') && !apuntadorMovido) {
+        ocultarDetalle(); detalleFijo = false;
+      }
+      if (apuntadorMovido) { ev.stopPropagation(); apuntadorMovido = false; }
+    });
+    document.addEventListener('keydown', ev => {
+      if (ev.key === 'Escape') { ocultarDetalle(); detalleFijo = false; }
+      if (ev.key === '+' || ev.key === '=') cambiarZoom(zoom * 1.25);
+      if (ev.key === '-') cambiarZoom(zoom / 1.25);
+      if (ev.key === '0') restablecer();
+      const paso = 85 / zoom;
+      if (ev.key === 'ArrowLeft') centro.x -= paso;
+      if (ev.key === 'ArrowRight') centro.x += paso;
+      if (ev.key === 'ArrowUp') centro.y -= paso;
+      if (ev.key === 'ArrowDown') centro.y += paso;
+      if (ev.key.startsWith('Arrow')) {ev.preventDefault(); pintarCamara();}
+    });
+    window.addEventListener('resize', pintarCamara);
+    pintarCamara();
+  </script>
+<script>
+/* ===============================================================
+   RESALTADO VECTORIAL / DATOS REALES: 15 respuestas por lugar.
+   Las zonas de color se asignan por proximidad a los recorridos
+   representativos de cada lugar, SIN teñir zonas de 0 votos.
+   La única máscara difuminada es la del CONTORNO general.
+   Todo permanece en SVG; funciona al hacer zoom o cambiar pantalla.
+   =============================================================== */
+(() => {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.getElementById('mapa');
+  const grupo = document.getElementById('capas-color');
+  const defs = svg.querySelector('defs');
+  const crear = (tipo, atributos = {}) => {
+    const elemento = document.createElementNS(ns, tipo);
+    Object.entries(atributos).forEach(([clave, valor]) => elemento.setAttribute(clave, String(valor)));
+    return elemento;
+  };
+
+  // Conserva las mismas 8 zonas clicables y sus eventos.
+  const zonasClicables = [...grupo.querySelectorAll(':scope > .zona-interactiva')];
+  grupo.replaceChildren();
+
+  // Misma figura aprobada, con esquinas curvas, incrustada como SVG.
+    const silueta = `M1308.8 73.9 Q1308.0 74.0 1308.0 74.8 L1308.0 76.2 Q1308.0 77.0 1308.6 77.6 L1310.9 79.9 Q1312.0 81.0 1313.6 81.3 L1316.3 81.7 Q1318.0 82.0 1318.0 80.3 L1318.0 75.5 Q1318.0 73.0 1315.5 73.3 Z
+M1194.0 4.5 Q1194.0 0.0 1189.5 0.0 L865.5 0.0 Q861.0 0.0 861.4 4.5 L871.7 108.8 Q872.0 112.0 872.8 115.1 L874.3 120.6 Q875.0 123.0 876.1 125.2 L877.9 128.8 Q879.0 131.0 880.5 133.0 L913.3 175.4 Q916.0 179.0 918.9 182.4 L960.1 231.6 Q963.0 235.0 965.6 238.7 L972.4 248.4 Q975.0 252.0 976.4 256.2 L978.6 262.8 Q980.0 267.0 980.7 271.4 L990.3 329.6 Q991.0 334.0 991.9 338.4 L1001.1 380.6 Q1002.0 385.0 1004.2 389.0 L1011.8 403.0 Q1014.0 407.0 1016.5 410.8 L1070.6 493.3 Q1073.0 497.0 1074.4 501.2 L1076.6 507.8 Q1078.0 512.0 1077.8 516.4 L1077.2 526.5 Q1077.0 531.0 1076.1 535.4 L1067.9 577.6 Q1067.0 582.0 1067.0 586.5 L1067.0 593.5 Q1067.0 598.0 1068.3 602.3 L1071.6 612.7 Q1073.0 617.0 1074.8 621.1 L1085.9 646.4 Q1087.0 649.0 1087.0 651.8 L1087.0 656.8 Q1087.0 659.0 1085.3 660.4 L1082.7 662.6 Q1081.0 664.0 1078.8 664.0 L1074.5 664.0 Q1072.0 664.0 1069.6 663.4 L1048.1 658.0 Q1044.0 657.0 1039.8 657.3 L1033.2 657.7 Q1029.0 658.0 1024.9 659.0 L965.4 673.9 Q961.0 675.0 956.9 676.8 L932.8 687.2 Q931.0 688.0 929.0 688.0 L926.0 688.0 Q924.0 688.0 922.2 687.2 L919.0 685.8 Q917.0 685.0 915.6 683.4 L906.9 673.4 Q904.0 670.0 901.7 666.1 L854.3 585.9 Q852.0 582.0 850.1 577.9 L805.9 486.1 Q804.0 482.0 802.3 477.8 L762.7 378.2 Q761.0 374.0 759.6 369.7 L707.4 215.3 Q706.0 211.0 705.0 206.6 L669.5 45.4 Q669.0 43.0 667.9 40.8 L666.1 37.2 Q665.0 35.0 663.2 33.2 L659.3 29.3 Q658.0 28.0 656.3 27.2 L653.7 25.8 Q652.0 25.0 650.2 24.5 L619.2 16.6 Q617.0 16.0 614.8 16.0 L610.6 16.0 Q609.0 16.0 607.6 16.8 L605.4 18.2 Q604.0 19.0 603.4 20.5 L601.8 24.8 Q601.0 27.0 601.2 29.4 L601.7 36.4 Q602.0 40.0 602.7 43.6 L631.1 189.6 Q632.0 194.0 633.1 198.4 L651.9 270.6 Q653.0 275.0 654.4 279.3 L666.6 317.7 Q668.0 322.0 669.7 326.2 L722.3 455.8 Q724.0 460.0 725.8 464.1 L765.2 551.9 Q767.0 556.0 769.0 560.0 L804.0 632.0 Q806.0 636.0 808.2 639.9 L838.8 695.1 Q841.0 699.0 842.7 703.2 L849.1 718.9 Q850.0 721.0 849.4 723.2 L848.6 726.8 Q848.0 729.0 846.4 730.6 L841.5 735.5 Q839.0 738.0 836.0 739.9 L786.8 770.6 Q783.0 773.0 779.6 776.0 L761.2 792.1 Q759.0 794.0 756.5 795.4 L752.2 797.8 Q750.0 799.0 747.5 798.7 L743.5 798.3 Q741.0 798.0 739.2 796.2 L736.0 793.0 Q734.0 791.0 732.7 788.6 L728.1 780.0 Q726.0 776.0 724.1 771.9 L653.9 617.1 Q652.0 613.0 650.3 608.8 L592.7 464.2 Q591.0 460.0 589.8 455.7 L560.2 349.3 Q559.0 345.0 557.6 340.7 L511.4 195.3 Q510.0 191.0 508.9 186.6 L494.1 128.4 Q493.0 124.0 492.2 119.6 L486.8 88.4 Q486.0 84.0 484.9 79.6 L472.1 27.4 Q471.0 23.0 470.4 18.5 L468.6 4.5 Q468.0 0.0 463.5 0.0 L441.5 0.0 Q437.0 0.0 437.2 4.5 L437.8 14.5 Q438.0 19.0 439.4 23.3 L443.6 36.7 Q445.0 41.0 445.9 45.4 L452.1 76.6 Q453.0 81.0 454.3 85.3 L457.7 96.7 Q459.0 101.0 459.9 105.4 L470.1 157.6 Q471.0 162.0 472.2 166.3 L480.8 197.7 Q482.0 202.0 483.5 206.3 L508.5 279.7 Q510.0 284.0 511.2 288.3 L553.8 440.7 Q555.0 445.0 556.5 449.2 L581.5 517.8 Q583.0 522.0 584.7 526.2 L631.3 641.8 Q633.0 646.0 634.9 650.1 L661.1 706.9 Q663.0 711.0 665.1 715.0 L686.9 757.0 Q689.0 761.0 690.8 765.1 L709.6 808.7 Q711.0 812.0 711.0 815.6 L711.0 821.4 Q711.0 825.0 708.7 827.8 L703.8 833.6 Q701.0 837.0 697.1 839.0 L680.0 847.9 Q676.0 850.0 671.8 851.7 L653.1 859.2 Q651.0 860.0 648.8 860.0 L644.3 860.0 Q643.0 860.0 641.9 859.4 L640.1 858.6 Q639.0 858.0 638.2 857.1 L633.2 851.5 Q631.0 849.0 629.5 846.0 L550.0 681.1 Q548.0 677.0 546.2 672.9 L531.8 641.1 Q530.0 637.0 528.4 632.8 L504.6 570.2 Q503.0 566.0 500.9 562.0 L490.1 541.0 Q488.0 537.0 486.3 532.8 L439.7 419.2 Q438.0 415.0 436.5 410.8 L417.5 357.2 Q416.0 353.0 414.7 348.7 L403.3 309.3 Q402.0 305.0 400.3 300.8 L379.7 250.2 Q378.0 246.0 376.1 241.9 L359.9 206.1 Q358.0 202.0 355.4 198.4 L347.6 187.6 Q345.0 184.0 343.1 179.9 L335.9 164.1 Q334.0 160.0 331.1 156.5 L321.9 145.5 Q319.0 142.0 316.7 138.1 L302.6 114.7 Q301.0 112.0 298.8 109.8 L295.2 106.2 Q293.0 104.0 290.4 102.2 L279.3 94.6 Q277.0 93.0 274.5 91.9 L270.5 90.1 Q268.0 89.0 265.3 88.8 L260.1 88.3 Q257.0 88.0 254.1 89.0 L238.3 94.5 Q234.0 96.0 229.9 97.8 L177.3 120.5 Q174.0 122.0 170.4 122.3 L164.6 122.7 Q161.0 123.0 157.6 121.7 L150.6 119.0 Q148.0 118.0 145.2 118.0 L140.1 118.0 Q138.0 118.0 136.0 118.8 L133.0 120.2 Q131.0 121.0 129.5 122.5 L126.7 125.3 Q125.0 127.0 124.4 129.3 L122.8 135.6 Q122.0 139.0 120.0 141.8 L116.2 146.9 Q114.0 150.0 110.7 152.0 L79.4 170.9 Q76.0 173.0 73.2 175.8 L68.8 180.2 Q66.0 183.0 64.5 186.7 L58.6 201.1 Q57.0 205.0 56.4 209.2 L55.6 215.8 Q55.0 220.0 56.3 224.0 L58.6 230.8 Q60.0 235.0 62.3 238.8 L76.6 262.2 Q79.0 266.0 80.9 270.1 L85.2 279.2 Q87.0 283.0 87.6 287.2 L88.5 294.0 Q89.0 298.0 87.9 301.9 L85.6 309.8 Q85.0 312.0 86.1 314.0 L87.9 317.0 Q89.0 319.0 91.1 319.9 L99.1 323.3 Q103.0 325.0 106.3 327.7 L112.8 333.2 Q115.0 335.0 117.8 335.6 L123.1 336.6 Q125.0 337.0 126.4 335.6 L128.6 333.4 Q130.0 332.0 130.6 330.1 L133.7 320.8 Q135.0 317.0 138.4 314.8 L143.6 311.2 Q147.0 309.0 150.8 307.5 L193.4 291.0 Q196.0 290.0 198.8 290.0 L203.2 290.0 Q206.0 290.0 208.2 291.7 L213.2 295.8 Q216.0 298.0 217.3 301.3 L323.4 575.8 Q325.0 580.0 327.1 584.0 L393.9 710.0 Q396.0 714.0 398.0 718.1 L424.0 771.9 Q426.0 776.0 427.7 780.2 L438.3 805.8 Q440.0 810.0 442.0 814.0 L485.7 900.4 Q487.0 903.0 487.8 905.8 L489.2 910.2 Q490.0 913.0 490.3 915.9 L491.7 931.7 Q492.0 935.0 493.1 938.1 L494.9 942.9 Q496.0 946.0 497.5 948.9 L528.0 1009.0 Q530.0 1013.0 531.8 1017.1 L560.2 1082.9 Q562.0 1087.0 563.3 1091.3 L582.7 1152.7 Q584.0 1157.0 584.5 1161.5 L587.5 1187.5 Q588.0 1192.0 592.5 1192.0 L633.5 1192.0 Q638.0 1192.0 640.0 1188.0 L644.5 1179.0 Q646.0 1176.0 646.0 1172.6 L646.0 1167.4 Q646.0 1164.0 645.2 1160.7 L640.6 1143.2 Q640.0 1141.0 640.0 1138.8 L640.0 1135.2 Q640.0 1133.0 640.8 1130.9 L642.2 1127.2 Q643.0 1125.0 644.6 1123.2 L655.0 1111.4 Q658.0 1108.0 661.4 1105.0 L690.6 1079.0 Q694.0 1076.0 697.8 1073.6 L707.1 1067.8 Q710.0 1066.0 713.4 1066.8 L718.6 1068.2 Q722.0 1069.0 724.3 1071.6 L735.0 1083.6 Q738.0 1087.0 741.3 1090.1 L779.0 1126.1 Q781.0 1128.0 783.5 1129.1 L787.9 1131.1 Q790.0 1132.0 792.2 1131.7 L796.0 1131.3 Q798.0 1131.0 799.1 1129.3 L800.9 1126.7 Q802.0 1125.0 801.4 1123.1 L800.6 1120.0 Q800.0 1118.0 798.8 1116.4 L790.7 1105.6 Q788.0 1102.0 784.8 1098.8 L769.2 1083.2 Q766.0 1080.0 763.3 1076.4 L754.7 1065.3 Q753.0 1063.0 752.4 1060.2 L751.4 1055.1 Q751.0 1053.0 751.8 1051.0 L753.2 1048.0 Q754.0 1046.0 755.6 1044.6 L807.5 1001.9 Q811.0 999.0 814.8 996.6 L835.1 984.2 Q837.0 983.0 839.2 983.0 L842.8 983.0 Q845.0 983.0 847.0 984.0 L850.8 985.9 Q853.0 987.0 854.7 988.8 L889.5 1026.3 Q891.0 1028.0 893.0 1029.1 L896.0 1030.9 Q898.0 1032.0 900.2 1031.8 L906.0 1031.1 Q907.0 1031.0 907.6 1030.2 L908.4 1028.8 Q909.0 1028.0 909.0 1027.0 L909.0 1020.8 Q909.0 1018.0 907.8 1015.5 L905.4 1010.1 Q904.0 1007.0 901.7 1004.5 L876.9 977.1 Q875.0 975.0 873.6 972.5 L871.2 968.2 Q870.0 966.0 869.7 963.5 L869.3 959.5 Q869.0 957.0 870.1 954.8 L871.9 951.2 Q873.0 949.0 874.8 947.2 L879.5 942.5 Q882.0 940.0 884.7 937.7 L955.4 879.4 Q957.0 878.0 959.0 877.2 L962.0 875.8 Q964.0 875.0 966.1 875.4 L971.9 876.4 Q975.0 877.0 977.3 879.2 L1017.4 917.4 Q1019.0 919.0 1021.0 920.1 L1024.0 921.9 Q1026.0 923.0 1028.3 923.0 L1033.7 923.0 Q1036.0 923.0 1038.0 921.9 L1041.0 920.1 Q1043.0 919.0 1044.5 917.3 L1052.7 908.5 Q1055.0 906.0 1055.3 902.6 L1055.8 896.2 Q1056.0 894.0 1054.9 892.0 L1053.1 889.0 Q1052.0 887.0 1050.5 885.4 L1024.1 857.3 Q1022.0 855.0 1020.6 852.2 L1018.0 847.0 Q1017.0 845.0 1017.3 842.8 L1017.7 839.2 Q1018.0 837.0 1019.2 835.1 L1022.3 829.8 Q1024.0 827.0 1026.1 824.5 L1096.1 742.4 Q1099.0 739.0 1102.2 735.8 L1116.1 721.9 Q1118.0 720.0 1120.2 718.6 L1123.8 716.4 Q1126.0 715.0 1128.6 714.5 L1136.8 712.8 Q1141.0 712.0 1145.3 711.9 L1226.5 710.1 Q1231.0 710.0 1235.3 708.7 L1261.7 700.3 Q1266.0 699.0 1270.1 697.2 L1305.4 682.1 Q1308.0 681.0 1310.8 680.7 L1315.2 680.3 Q1318.0 680.0 1318.0 677.2 L1318.0 507.0 Q1318.0 505.0 1316.0 504.4 L1313.0 503.6 Q1311.0 503.0 1309.5 501.7 L1306.0 498.7 Q1304.0 497.0 1302.9 494.7 L1298.8 485.8 Q1298.0 484.0 1298.0 482.0 L1298.0 478.0 Q1298.0 477.0 1298.6 476.2 L1299.5 474.7 Q1300.0 474.0 1300.8 474.0 L1302.2 474.0 Q1303.0 474.0 1303.7 474.5 L1310.6 479.9 Q1312.0 481.0 1313.7 481.6 L1316.3 482.4 Q1318.0 483.0 1318.0 481.2 L1318.0 135.8 Q1318.0 134.0 1316.3 133.4 L1313.7 132.6 Q1312.0 132.0 1310.9 130.6 L1299.9 117.5 Q1297.0 114.0 1293.0 111.9 L1286.0 108.1 Q1282.0 106.0 1279.0 102.7 L1266.0 88.3 Q1263.0 85.0 1261.2 80.9 L1255.6 68.4 Q1255.0 67.0 1253.9 65.9 L1252.1 64.1 Q1251.0 63.0 1249.6 62.3 L1243.8 59.4 Q1241.0 58.0 1238.8 55.8 L1228.2 45.2 Q1225.0 42.0 1221.1 39.8 L1208.1 32.7 Q1205.0 31.0 1202.5 28.5 L1197.1 23.1 Q1196.0 22.0 1195.4 20.6 L1194.6 18.4 Q1194.0 17.0 1194.0 15.5 Z
+M319.9 235.9 Q322.0 235.0 324.2 235.0 L327.8 235.0 Q330.0 235.0 331.9 236.2 L335.8 238.6 Q338.0 240.0 339.2 242.3 L353.9 270.0 Q356.0 274.0 357.7 278.2 L368.3 303.8 Q370.0 308.0 371.4 312.3 L392.6 378.7 Q394.0 383.0 395.5 387.2 L414.5 438.8 Q416.0 443.0 417.8 447.1 L436.2 490.9 Q438.0 495.0 439.9 499.1 L470.1 562.9 Q472.0 567.0 473.4 571.3 L487.6 612.7 Q489.0 617.0 490.7 621.2 L502.3 649.8 Q504.0 654.0 505.9 658.1 L552.1 756.9 Q554.0 761.0 556.2 764.9 L568.8 788.1 Q571.0 792.0 572.9 796.1 L600.7 855.2 Q602.0 858.0 602.0 861.1 L602.0 866.0 Q602.0 869.0 600.0 871.2 L597.0 874.8 Q595.0 877.0 592.4 878.5 L542.0 907.3 Q539.0 909.0 535.6 908.4 L530.1 907.5 Q527.0 907.0 524.8 904.8 L521.2 901.2 Q519.0 899.0 517.3 896.3 L513.2 889.6 Q511.0 886.0 509.1 882.2 L466.0 793.0 Q464.0 789.0 462.2 784.9 L448.8 753.1 Q447.0 749.0 444.9 745.0 L365.1 593.0 Q363.0 589.0 361.3 584.8 L310.7 461.2 Q309.0 457.0 307.4 452.8 L246.2 288.1 Q245.0 285.0 245.0 281.6 L245.0 276.4 Q245.0 273.0 247.2 270.5 L250.8 266.5 Q253.0 264.0 256.1 262.7 Z`;
+
+  // El contorno se transforma en transparencia de manera progresiva.
+  // No se recorta en seco con clipPath ni se difuminan los datos entre zonas.
+  const difuminado = 8.5; // Cambia a 12 para una terminación aún más suave.
+  const filtro = crear('filter', {
+    id: 'desvanecer-limites', filterUnits: 'userSpaceOnUse',
+    x: -70, y: -70, width: 1459, height: 1333
+  });
+  filtro.appendChild(crear('feGaussianBlur', {
+    in: 'SourceGraphic', stdDeviation: difuminado
+  }));
+  defs.appendChild(filtro);
+
+  const mascara = crear('mask', {
+    id: 'mascara-difuminada', maskUnits: 'userSpaceOnUse',
+    maskContentUnits: 'userSpaceOnUse',
+    x: -70, y: -70, width: 1459, height: 1333,
+    style: 'mask-type:alpha'
+  });
+  mascara.appendChild(crear('path', {
+    d: silueta, fill: 'white', 'fill-rule': 'evenodd',
+    filter: 'url(#desvanecer-limites)'
+  }));
+  defs.appendChild(mascara);
+
+  const capa = crear('g', {
+    class: 'resaltado-mapa',
+    mask: 'url(#mascara-difuminada)',
+    'pointer-events': 'none'
+  });
+
+  // Puntos de referencia de cada lugar SOBRE el trazado existente.
+  // Se usan únicamente para dividir espacialmente la figura. Los colores
+  // se toman de "espacios", cuyas cantidades son las de la encuesta.
+  const puntos = {
+    echaurren: [[122,188],[180,195],[220,270],[130,290]],
+    serrano: [[253,301],[294,432],[346,580],[407,733],[452,865]],
+    cochrane: [[356,214],[402,371],[450,514],[523,687],[606,858]],
+    blanco: [[485,139],[526,295],[575,455],[645,631],[710,797]],
+    errazuriz: [[635,48],[679,245],[725,434],[785,624],[844,757]],
+    muelle: [[960,72],[1055,140],[1085,313],[1168,475],[1240,610],
+            [1260,695],[997,575],[936,370],[1180,220]],
+    monumento: [[814,826],[848,854],[902,917],[965,852],[1025,891]],
+    sotomayor: [[535,940],[615,1010],[700,1075],[619,1150],[750,1040],[680,926]]
+  };
+
+  const sitios = Object.entries(puntos).flatMap(([id, lista]) =>
+    lista.map(([x,y]) => ({id,x,y}))
+  );
+  const porId = Object.fromEntries(espacios.map(e => [e.id,e]));
+  const AZUL = [17, 185, 255];
+  const ROSA = [255, 44, 146];
+
+  function colorExacto(e) {
+    // Si contención = 0, el resultado es SIEMPRE celeste puro.
+    // Si apertura = 0, el resultado es SIEMPRE rosado puro.
+    const parteRosada = e.contencion / (e.apertura + e.contencion);
+    const rgb = AZUL.map((v,i) => Math.round(v * (1 - parteRosada) + ROSA[i] * parteRosada));
+    return `rgb(${rgb.join(',')})`;
+  }
+
+  // Transición cromática interna: desenfoca la UNIÓN entre zonas vecinas.
+  // Se realiza sobre todas las celdas juntas, no en cada polígono por
+  // separado, así los colores se mezclan sin dejar líneas ni halos blancos.
+  // El contorno exterior conserva su máscara independiente.
+  const transicion = crear('filter', {
+    id: 'mezcla-entre-zonas',
+    filterUnits: 'userSpaceOnUse',
+    x: -145, y: -145, width: 1609, height: 1483,
+    'color-interpolation-filters': 'sRGB'
+  });
+  transicion.appendChild(crear('feGaussianBlur', {
+    in: 'SourceGraphic', stdDeviation: 20
+  }));
+  defs.appendChild(transicion);
+  const campoColores = crear('g', {
+    filter: 'url(#mezcla-entre-zonas)',
+    'pointer-events': 'none'
+  });
+  capa.appendChild(campoColores);
+
+  // Polígonos SVG orientados por proximidad a cada lugar.
+  // Sus valores proceden de las 15 respuestas de cada sector;
+  // el suavizado afecta solamente a su transición VISUAL.
+  function poligonoDeSitio(sitio) {
+    let poligono = [[-70,-70],[1389,-70],[1389,1263],[-70,1263]];
+    for (const otro of sitios) {
+      if (otro === sitio) continue;
+      const nx = otro.x - sitio.x;
+      const ny = otro.y - sitio.y;
+      const corte = (otro.x * otro.x + otro.y * otro.y - sitio.x * sitio.x - sitio.y * sitio.y) / 2;
+      const nuevo = [];
+      for (let i = 0; i < poligono.length; i++) {
+        const a = poligono[i];
+        const b = poligono[(i + 1) % poligono.length];
+        const da = a[0] * nx + a[1] * ny - corte;
+        const db = b[0] * nx + b[1] * ny - corte;
+        const dentroA = da <= 1e-8;
+        const dentroB = db <= 1e-8;
+        if (dentroA) nuevo.push(a);
+        if (dentroA !== dentroB) {
+          const t = da / (da - db);
+          nuevo.push([a[0] + t * (b[0]-a[0]), a[1] + t * (b[1]-a[1])]);
+        }
+      }
+      poligono = nuevo;
+      if (!poligono.length) break;
+    }
+    return poligono.length > 2
+      ? 'M' + poligono.map(p => p.map(n => n.toFixed(2)).join(' ')).join(' L') + ' Z'
+      : '';
+  }
+
+  for (const sitio of sitios) {
+    const d = poligonoDeSitio(sitio);
+    if (!d) continue;
+    const e = porId[sitio.id];
+    const color = colorExacto(e);
+    campoColores.appendChild(crear('path', {
+      d, fill: color, stroke: color, 'stroke-width': 1.25,
+      class: 'resaltado-zona', 'data-resaltado': sitio.id
+    }));
+  }
+
+  grupo.appendChild(capa);
+  zonasClicables.forEach(z => grupo.appendChild(z));
+})();
+</script>
+<script>
+/* ===============================================================
+   EDIFICIOS DE PERCEPCIÓN — TODA LA CALLE, POSICIONES FIJAS
+   Se construyen a ambos lados del recorrido completo (no siguen
+   al cursor). Altura = proporción de CONTENCIÓN de las 15 encuestas;
+   color = mezcla EXACTA apertura/contención del mismo lugar.
+   En plazas y muelle los volúmenes bajos están en su perímetro.
+   Los volúmenes son una representación abstracta, no edificios reales.
+   =============================================================== */
+(() => {
+  'use strict';
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.getElementById('mapa');
+  const etiquetas = document.getElementById('etiquetas');
+  if (!svg || !etiquetas || typeof espacios === 'undefined') return;
+
+  const crear = (tipo, attrs = {}) => {
+    const e = document.createElementNS(NS, tipo);
+    for (const [k,v] of Object.entries(attrs)) e.setAttribute(k, String(v));
+    return e;
+  };
+  const limitar = (n, a, b) => Math.max(a, Math.min(b,n));
+  const mezclar = (a,b,t) => a.map((n,i)=>Math.round(n*(1-t)+b[i]*t));
+  const rgb = v => `rgb(${v.join(',')})`;
+  const aclarar = (v,t) => t>=0 ? mezclar(v,[255,255,255],t) : mezclar(v,[15,15,24],-t);
+  const punto = (x,y) => ({x,y});
+  const suma = (a,b) => punto(a.x+b.x,a.y+b.y);
+  const por = (v,n) => punto(v.x*n,v.y*n);
+  const coord = v => `${v.x.toFixed(1)},${v.y.toFixed(1)}`;
+  const puntos = (...vs) => vs.map(coord).join(' ');
+  const aPuntos = lista => lista.map(([x,y]) => punto(x,y));
+  function prepararGuia(guia) {
+    const pts = aPuntos(guia.puntos);
+    const segmentos = [];
+    let largoTotal = 0;
+    for(let i=0;i<pts.length-1;i++) {
+      const a = pts[i], b = pts[i+1];
+      const largo = Math.hypot(b.x-a.x,b.y-a.y);
+      if(!largo) continue;
+      segmentos.push({a,b,largo,inicio:largoTotal,fin:largoTotal+largo});
+      largoTotal += largo;
+    }
+    return {...guia, pts, segmentos, largoTotal};
+  }
+  function puntoEnGuia(guia, d) {
+    const objetivo = limitar(d,0,guia.largoTotal);
+    const seg = guia.segmentos.find(s => objetivo <= s.fin) || guia.segmentos[guia.segmentos.length-1];
+    const t = seg.largo ? (objetivo-seg.inicio)/seg.largo : 0;
+    return punto(seg.a.x + (seg.b.x-seg.a.x)*t, seg.a.y + (seg.b.y-seg.a.y)*t);
+  }
+
+  // Reutiliza exactamente las respuestas y los caminos del mapa actual.
+  const sectores = espacios.map(e => {
+    const camino = document.querySelector(`[data-lugar="${e.id}"] .zona-interaccion`);
+    if (!camino || !camino.getTotalLength) return null;
+    const largo = camino.getTotalLength();
+    const caja = camino.getBBox();
+    const muestras = [];
+    for(let j=0;j<=170;j++) {
+      const d = largo*j/170;
+      const p = camino.getPointAtLength(d);
+      muestras.push({x:p.x,y:p.y,distancia:d});
+    }
+    return {
+      e,camino,largo,muestras,
+      centro:punto(caja.x+caja.width/2,caja.y+caja.height/2),
+      guias:(e.guias||[]).map(prepararGuia),
+      color:mezclar([17,185,255],[255,44,146],e.contencion/15),
+      // Contención alta = edificios altos; 100% apertura = muy bajos.
+      altura:9+89*e.contencion/15
+    };
+  }).filter(Boolean);
+
+  const grupo = crear('g',{
+    id:'edificios-al-pasar',
+    class:'volumenes-hover',
+    'pointer-events':'none',
+    'aria-hidden':'true',
+    opacity:'0'
+  });
+  // Encima del trazado, por debajo de los nombres y sin capturar el ratón.
+  svg.insertBefore(grupo,etiquetas);
+
+  const estilo = document.createElement('style');
+  estilo.textContent = `
+    #edificios-al-pasar {pointer-events:none!important;isolation:isolate}
+    #edificios-al-pasar .edificio-prisma {pointer-events:none}
+    #edificios-al-pasar polygon {stroke-linejoin:round;stroke-width:.58}
+    #edificios-al-pasar .edificio-sombra {stroke:none;opacity:.14}
+    #edificios-al-pasar .edificio-frente {opacity:.96}
+    #edificios-al-pasar .edificio-lado {opacity:.91}
+    #edificios-al-pasar .edificio-lado-trasero {opacity:.74}
+    #edificios-al-pasar .edificio-techo {opacity:.98}
+    #edificios-al-pasar .edificio-brillo {
+      stroke:rgba(255,255,255,.62);stroke-width:1.05;
+      stroke-linecap:round;stroke-linejoin:round
+    }
+  `;
+  document.head.appendChild(estilo);
+
+  const piezas=[];
+  function crearPieza() {
+    const g=crear('g',{'class':'edificio-prisma','pointer-events':'none'});
+    const sombra=crear('polygon',{class:'edificio-sombra'});
+    const frente=crear('polygon',{class:'edificio-frente'});
+    const lado=crear('polygon',{class:'edificio-lado'});
+    const trasera=crear('polygon',{class:'edificio-lado-trasero'});
+    const techo=crear('polygon',{class:'edificio-techo'});
+    const brillo=crear('polyline',{class:'edificio-brillo',fill:'none'});
+    g.append(sombra,trasera,frente,lado,techo,brillo);
+    grupo.appendChild(g);
+    piezas.push({g,sombra,frente,lado,trasera,techo,brillo});
+  }
+  const asegurarPiezas = cantidad => {
+    while(piezas.length < cantidad) crearPieza();
+  };
+
+  const obtener=(t,d)=>{
+    const p=t.camino.getPointAtLength(limitar(d,0,t.largo));
+    return punto(p.x,p.y);
+  };
+  // Proximidad SOLO para decidir la zona. No controla los edificios.
+  function distanciaAlCamino(t,x,y) {
+    let dist2=Infinity;
+    for(const m of t.muestras) {
+      const d2=(m.x-x)**2+(m.y-y)**2;
+      if(d2<dist2) dist2=d2;
+    }
+    return Math.sqrt(dist2);
+  }
+
+  // Una vez elegido el sector, se calculan TODAS las posiciones fijas.
+  // El mouse no afecta su posición ni la orientación ni su altura.
+  function distribuir(t) {
+    const variaciones=[.83,1,.76,1.12,.88,.95,.8,1.04,.86,1.07];
+    const modelos=[];
+
+    // Áreas con guías explícitas: plazas más cuadradas y muelle solo del lado urbano.
+    if(t.guias && t.guias.length) {
+      for(const guia of t.guias) {
+        const margen=Math.min(18,guia.largoTotal*0.04);
+        const tramo=Math.max(1,guia.largoTotal-2*margen);
+        const numero=limitar(Math.round(tramo/34), guia.min||6, guia.max||18);
+        for(let i=0;i<numero;i++) {
+          const dist=margen+(i+.5)*tramo/numero;
+          const p=puntoEnGuia(guia,dist);
+          const anterior=puntoEnGuia(guia,dist-8);
+          const posterior=puntoEnGuia(guia,dist+8);
+          const ang=Math.atan2(posterior.y-anterior.y,posterior.x-anterior.x);
+          const tang=punto(Math.cos(ang),Math.sin(ang));
+          const normal=punto(-tang.y,tang.x);
+          const largoEd=limitar(tramo/numero*.7,16,25);
+          const fondo=14+(i%3)*2;
+          const signo=guia.lado || 1;
+          const centro=suma(p,por(normal,signo*((guia.separacion||8)+fondo/2)));
+          const eje=por(tang,largoEd/2);
+          const lateral=por(normal,fondo/2);
+          const a=suma(suma(centro,por(eje,-1)),por(lateral,-1));
+          const b=suma(suma(centro,eje),por(lateral,-1));
+          const c=suma(suma(centro,eje),lateral);
+          const d=suma(suma(centro,por(eje,-1)),lateral);
+          modelos.push({a,b,c,d,altura:t.altura*variaciones[i%variaciones.length]*.8});
+        }
+      }
+      return modelos;
+    }
+
+    // Calles: ambos lados, siguiendo el orden completo del eje de la calle.
+    const margen=Math.min(25,t.largo*0.045);
+    const tramo=Math.max(1,t.largo-2*margen);
+    const numero=limitar(Math.round(tramo/36),9,34);
+    for(let i=0;i<numero;i++) {
+      const dist=margen+(i+.5)*tramo/numero;
+      const p=obtener(t,dist);
+      const anterior=obtener(t,dist-8);
+      const posterior=obtener(t,dist+8);
+      const ang=Math.atan2(posterior.y-anterior.y,posterior.x-anterior.x);
+      const tang=punto(Math.cos(ang),Math.sin(ang));
+      const normal=punto(-tang.y,tang.x);
+      const largoEd=limitar(tramo/numero*.72,18,27);
+      const fondo=14+(i%3)*2;
+      for(const lado of [-1,1]) {
+        const mediaCalle=t.e.ancho/2;
+        const centro=suma(p,por(normal,lado*(mediaCalle+6+fondo/2)));
+        const eje=por(tang,largoEd/2);
+        const lateral=por(normal,fondo/2);
+        const a=suma(suma(centro,por(eje,-1)),por(lateral,-1));
+        const b=suma(suma(centro,eje),por(lateral,-1));
+        const c=suma(suma(centro,eje),lateral);
+        const d=suma(suma(centro,por(eje,-1)),lateral);
+        modelos.push({a,b,c,d,altura:t.altura*variaciones[i%variaciones.length]});
+      }
+    }
+    return modelos;
+  }
+
+  function colores(t) {
+    grupo.setAttribute('data-sector',t.e.id);
+    grupo.setAttribute('data-apertura',String(t.e.apertura));
+    grupo.setAttribute('data-contencion',String(t.e.contencion));
+    grupo.setAttribute('data-altura-maxima',t.altura.toFixed(1));
+    const base=t.color;
+    for(const p of piezas) {
+      p.sombra.setAttribute('fill',rgb(aclarar(base,-.28)));
+      p.frente.setAttribute('fill',rgb(aclarar(base,.11)));
+      p.lado.setAttribute('fill',rgb(aclarar(base,-.18)));
+      p.trasera.setAttribute('fill',rgb(aclarar(base,-.04)));
+      p.techo.setAttribute('fill',rgb(aclarar(base,.38)));
+      for(const cara of [p.frente,p.lado,p.trasera,p.techo])
+        cara.setAttribute('stroke',rgb(aclarar(base,-.26)));
+    }
+  }
+
+  function dibujar(p,m,escala) {
+    const h=m.altura*escala;
+    if(h<.35) {p.g.setAttribute('opacity','0');return;}
+    const arriba=punto(h*.48,-h*.87);
+    const a=suma(m.a,arriba),b=suma(m.b,arriba);
+    const c=suma(m.c,arriba),d=suma(m.d,arriba);
+    const sombraShift=punto(3+h*.12,3+h*.075);
+    p.sombra.setAttribute('points',puntos(...[m.a,m.b,m.c,m.d].map(v=>suma(v,sombraShift))));
+    p.frente.setAttribute('points',puntos(m.a,m.b,b,a));
+    p.lado.setAttribute('points',puntos(m.b,m.c,c,b));
+    p.trasera.setAttribute('points',puntos(m.c,m.d,d,c));
+    p.techo.setAttribute('points',puntos(a,b,c,d));
+    p.brillo.setAttribute('points',puntos(a,b,c));
+    p.g.setAttribute('opacity',Math.min(1,.3+escala).toFixed(3));
+  }
+
+  let elegido=null;
+  let visible=null;
+  let modelos=[];
+  let avance=0;
+  let raf=0;
+  let arrastrando=false;
+
+  function render() {
+    raf=0;
+    // Entrada y salida suaves; sin desplazamiento hacia el cursor.
+    avance+=(Number(Boolean(elegido))-avance)*.19;
+    if(visible && avance>.009) {
+      for(let i=0;i<modelos.length;i++) dibujar(piezas[i],modelos[i],avance);
+      grupo.setAttribute('opacity',String(Math.min(1,avance*1.25)));
+    } else {
+      grupo.setAttribute('opacity','0');
+      if(!elegido) {visible=null;grupo.removeAttribute('data-sector');}
+    }
+    if(elegido||avance>.009) raf=requestAnimationFrame(render);
+  }
+  function programar() {if(!raf) raf=requestAnimationFrame(render);}
+
+  function cambiarSector(t) {
+    if(t===elegido) return; // Pasar de un extremo al otro NO mueve los edificios.
+    elegido=t;
+    if(t) {
+      if(t!==visible) {
+        visible=t;
+        modelos=distribuir(t);
+        asegurarPiezas(modelos.length);
+        piezas.forEach((p,i)=>p.g.setAttribute('opacity',i<modelos.length?'1':'0'));
+        colores(t);
+        avance=0;
+      }
+    }
+    programar();
+  }
+
+  function coordenadasSVG(ev) {
+    const p=svg.createSVGPoint();
+    p.x=ev.clientX;p.y=ev.clientY;
+    return p.matrixTransform(svg.getScreenCTM().inverse());
+  }
+  function pasar(ev) {
+    if(ev.pointerType==='touch'||arrastrando||ev.buttons!==0) return;
+    const p=coordenadasSVG(ev);
+    const zona=ev.target.closest?.('.zona-interactiva');
+    const eZona=zona && espacios.find(e=>e.id===zona.getAttribute('data-lugar'));
+    let mejor=null,distancia=Infinity;
+    if(eZona && eZona.tipo==='area') {
+      mejor=sectores.find(t=>t.e===eZona)||null;
+    } else {
+      for(const t of sectores) {
+        if(t.e.tipo!=='calle') continue;
+        const d=distanciaAlCamino(t,p.x,p.y);
+        const tolerancia=Math.max(34,t.e.ancho/2+14);
+        if(d<=tolerancia && d<distancia) {mejor=t;distancia=d;}
+      }
+    }
+    cambiarSector(mejor);
+  }
+  svg.addEventListener('pointermove',pasar);
+  svg.addEventListener('pointerleave',()=>cambiarSector(null));
+  svg.addEventListener('pointerdown',()=>{arrastrando=true;cambiarSector(null);});
+  for(const evento of ['pointerup','pointercancel','lostpointercapture'])
+    svg.addEventListener(evento,()=>{arrastrando=false;cambiarSector(null);});
+  window.addEventListener('blur',()=>cambiarSector(null));
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden)cambiarSector(null);
+  });
+})();
+</script>
+</body>
+</html>

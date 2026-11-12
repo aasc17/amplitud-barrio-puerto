@@ -1,0 +1,67 @@
+  .instruccion { left: 13px; bottom: 13px; font-size: 7px; max-width: 68px; line-height: 1.6; }
+
+/* TRAZOS OBTENIDOS DE LA GEOMETRÍA DE LA IMAGEN DE REFERENCIA */
+#cartografia { pointer-events:none; }
+.trazo-aereo {
+  fill:none; stroke:#111; stroke-width:1.45;
+  stroke-linejoin:round; stroke-linecap:round; opacity:.90;
+}
+.trazo-detalle {
+  fill:none; stroke:#111; stroke-width:.85;
+  stroke-linejoin:round; stroke-linecap:round; opacity:.64;
+}
+.trazo-borde { fill:none;stroke:#090909;stroke-width:2;stroke-linejoin:round; }
+.contorno-monumento { fill:none;stroke:#050505;stroke-width:2.6;stroke-linejoin:round; }
+/* Las zonas de opinión son capas de tinta, no edificios dibujados */
+.zona { mix-blend-mode:multiply; }
+.etiqueta { font-size:12px; letter-spacing:1.4px; }
+/* Fondo blanco a toda la ventana, incluso al mover el SVG */
+body,html,.visor,.mapa {background:#fff;}
+.visor {width:100vw;height:100dvh;min-height:0;}
+.mapa {width:100vw;height:100%;}
+@media (max-width:650px) {
+ .etiqueta {font-size:14px;}
+ .leyenda {background:#fff;}
+}
+
+/* ==========================================
+   ACABADO EDITORIAL: CARTOGRAFÍA Y TINTAS
+   Trazos arquitectónicos muy finos sobre blanco.
+   Color bajo la cartografía.
+========================================== */
+#cartografia {pointer-events:none;}
+.trazo-aereo {fill:none;stroke:#111;stroke-width:1.05;stroke-linejoin:round;stroke-linecap:round;opacity:.87;}
+.trazo-detalle {fill:none;stroke:#191919;stroke-width:.60;stroke-linejoin:round;stroke-linecap:round;opacity:.47;}
+.trazo-borde {fill:none;stroke:#090909;stroke-width:1.35;opacity:.83;}
+.contorno-monumento {fill:none;stroke:#151515;stroke-width:1.65;}
+.campo-fluido {pointer-events:none;}
+.zona-interactiva {pointer-events:none;}
+.zona-interaccion {pointer-events:visiblePainted;cursor:crosshair;}
+.etiqueta {font-size:12px;letter-spacing:1.45px;font-weight:700;stroke:white;stroke-width:3.4px;}
+.muestra.mezcla {background:linear-gradient(90deg,#11b9ff,#9b73e6,#ff2c92);}
+.leyenda {background:#fff;}
+
+/* RED ORGÁNICA: CONTORNOS DEFINIDOS Y UNIONES SUAVES */
+.red-organica {pointer-events:none; opacity:.92;}
+.trazo-organico, .ramificacion {fill:none; stroke-linecap:round; stroke-linejoin:round;}
+.nudo-organico {stroke:none;}
+/* Deja visibles los contornos negros del mapa sobre la red cromática */
+.trazo-aereo {stroke:#111;stroke-width:1.05;opacity:.82;}
+.trazo-detalle {stroke:#171717;stroke-width:.62;opacity:.48;}
+/* No utilizar filtros de desenfoque ni mezclas multiplicadas */
+#capas-color {isolation:isolate;}
+
+/* SOLO OCHO LUGARES · TRAMOS ORGÁNICOS DE GROSOR VARIABLE */
+.red-organica { opacity:.92; mix-blend-mode:multiply; pointer-events:none; }
+.cinta-urbana {stroke:none; pointer-events:none;}
+/* Cartografía de apoyo, discreta respecto de los datos. */
+.trazo-aereo { stroke:#111;stroke-width:1.15; opacity:.57; }
+.trazo-detalle { stroke:#282828;stroke-width:.72; opacity:.24; }
+.trazo-borde {opacity:.50;}
+.contorno-monumento {opacity:.60;}
+.leyenda {box-shadow:0 7px 25px rgba(0,0,0,.07);}
+
+/* Resaltado vectorial SVG, completamente responsivo. */
+.resaltado-vector, .resaltado-enfoque { pointer-events: none; }
+.resaltado-enfoque { opacity: 0; transition: opacity 160ms ease; }
+.resaltado-enfoque.activo { opacity: .22; }

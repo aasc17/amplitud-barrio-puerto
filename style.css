@@ -1,67 +1,1230 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="description" content="Mapa interactivo de apertura y contención espacial en Barrio Puerto, Valparaíso, construido a partir de 15 encuestas." />
+  <title>Apertura / Contención — Barrio Puerto</title>
+  <!-- Estilos originales integrados para que no desaparezca la interfaz -->
+  <style>
+:root {
+  --papel: #ffffff;
+  --tinta: #000000;
+  --gris: #6e7072;
+  --apertura: #18b6e6;
+  --contencion: #f05424;
+  --fuente-texto: Arial, sans-serif;
+  --fuente-titulos: Helvetica, "Helvetica Neue", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+body { background: var(--papel); color: var(--tinta); font-family: var(--fuente-texto); -webkit-font-smoothing: antialiased; }
+button { font: inherit; font-family: inherit; }
+.visor { position: relative; overflow: hidden; width: 100%; height: 100svh; min-height: 320px; background: var(--papel); isolation: isolate; }
+.mapa { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.mapa.arrastrando { cursor: grabbing; }
+.zona { mix-blend-mode: multiply; }
+.zona-halo, .zona-tinta { pointer-events: none; }
+.zona-tinta { transition: opacity 160ms ease; }
+.zona-interaccion { pointer-events: visiblePainted; cursor: crosshair; outline: none; }
+.zona:has(.zona-interaccion:hover) .zona-tinta,
+.zona:has(.zona-interaccion:focus-visible) .zona-tinta { opacity: .96; }
+.etiqueta { font-family: var(--fuente-titulos); font-size: 14px; letter-spacing: 1.7px; font-weight: 750; fill: #17191a; stroke: none; stroke-width: 0; paint-order: normal; stroke-linejoin: round; pointer-events: none; }
+.leyenda { position: absolute; z-index: 8; right: 25px; bottom: 25px; width: min(300px, calc(100vw - 44px)); background: #fff; border: 1px solid #d9d9d9; padding: 22px 23px 18px; box-shadow: 0 3px 22px #0000000c; font-family: var(--fuente-texto); }
+.leyenda-titulo { font-family: var(--fuente-titulos); display: flex; justify-content: space-between; align-items: center; font-size: 11px; letter-spacing: .2em; font-weight: 800; }
+.leyenda-titulo span { font-family: var(--fuente-titulos); font-weight: 500; letter-spacing: .07em; color: #8b8b8b; }
+.leyenda-linea { background: #292929; height: 1px; margin: 13px 0 18px; }
+.leyenda-linea.tenue { background: #e4e4e4; margin: 18px 0 13px; }
+.leyenda-elemento { font-family: var(--fuente-texto); display: flex; align-items: center; gap: 11px; font-size: 12px; letter-spacing: .01em; margin: 12px 0; }
+.muestra { display: block; width: 23px; height: 16px; flex-shrink: 0; }
+.muestra.apertura { background: var(--apertura); }
+.muestra.contencion { background: var(--contencion); }
+.muestra.mezcla { background: linear-gradient(90deg, var(--apertura), var(--contencion)); }
+.leyenda-escala { font-family: var(--fuente-texto); display: flex; justify-content: space-between; gap: 10px; font-size: 8px; letter-spacing: .1em; color: #656565; }
+.escala-color { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0 13px; }
+.escala-color span { height: 9px; background: linear-gradient(90deg, #e4f7fc, var(--apertura)); }
+.escala-color span + span { background: linear-gradient(90deg, #ffefe8, var(--contencion)); }
+.leyenda-nota { font-family: var(--fuente-texto); font-size: 10.5px; line-height: 1.55; margin: 0; color: #5d6063; }
+.leyenda-pie { font-family: var(--fuente-titulos); display: flex; align-items: center; gap: 9px; margin: 19px 0 0; padding-top: 11px; border-top: 1px solid #ececec; font-size: 9px; font-weight: 700; color: #7a7a7a; letter-spacing: .15em; }
+.leyenda-pie span { font-size: 15px; font-weight: 400; line-height: .6; }
+.detalle { position: absolute; z-index: 10; background: #fff; width: 216px; border: 1px solid #242424; padding: 13px; box-shadow: 0 7px 28px #00000021; pointer-events: none; font-family: var(--fuente-texto); }
+.detalle[hidden] { display: none; }
+.detalle-encabezado { font-family: var(--fuente-titulos); display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 15px; font-size: 12px; font-weight: 700; line-height: 1.3; }
+.detalle-cerrar { flex-shrink: 0; color: #9a9a9a; }
+.detalle-barra { display: flex; width: 100%; height: 9px; background: #eee; overflow: hidden; }
+#barra-apertura { background: var(--apertura); }
+#barra-contencion { background: var(--contencion); }
+.detalle-cifras { font-family: var(--fuente-texto); display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 9.5px; color: #4f5154; }
+.detalle-cifras b { font-family: var(--fuente-titulos); color: #171717; font-size: 12px; }
+.detalle-explicacion { font-family: var(--fuente-texto); margin: 11px 0 0; padding-top: 9px; border-top: 1px solid #eaeaea; font-size: 10.5px; line-height: 1.55; color: #4f5154; }
+.resaltado-zona { pointer-events: none; }
+.resaltado-zona.activo { filter: brightness(1.06); }
+.instruccion { font-family: var(--fuente-titulos); position: absolute; z-index: 3; bottom: 26px; left: 24px; font-size: 9px; font-weight: 700; color: #7f8284; letter-spacing: .19em; user-select: none; pointer-events: none; }
+.solo-lectores { font-family: var(--fuente-texto); position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@media (max-width: 650px) {
+  .leyenda { right: 12px; bottom: 12px; width: min(257px, calc(100vw - 24px)); padding: 15px 16px 13px; }
+  .leyenda-elemento { margin: 9px 0; }
+  .leyenda-linea { margin: 10px 0 14px; }
+  .leyenda-linea.tenue { margin: 12px 0 10px; }
+  .leyenda-nota { font-size: 10px; }
+  .leyenda-pie { margin-top: 10px; }
   .instruccion { left: 13px; bottom: 13px; font-size: 7px; max-width: 68px; line-height: 1.6; }
-
-/* TRAZOS OBTENIDOS DE LA GEOMETRÍA DE LA IMAGEN DE REFERENCIA */
-#cartografia { pointer-events:none; }
-.trazo-aereo {
-  fill:none; stroke:#111; stroke-width:1.45;
-  stroke-linejoin:round; stroke-linecap:round; opacity:.90;
-}
-.trazo-detalle {
-  fill:none; stroke:#111; stroke-width:.85;
-  stroke-linejoin:round; stroke-linecap:round; opacity:.64;
-}
-.trazo-borde { fill:none;stroke:#090909;stroke-width:2;stroke-linejoin:round; }
-.contorno-monumento { fill:none;stroke:#050505;stroke-width:2.6;stroke-linejoin:round; }
-/* Las zonas de opinión son capas de tinta, no edificios dibujados */
-.zona { mix-blend-mode:multiply; }
-.etiqueta { font-size:12px; letter-spacing:1.4px; }
-/* Fondo blanco a toda la ventana, incluso al mover el SVG */
-body,html,.visor,.mapa {background:#fff;}
-.visor {width:100vw;height:100dvh;min-height:0;}
-.mapa {width:100vw;height:100%;}
-@media (max-width:650px) {
- .etiqueta {font-size:14px;}
- .leyenda {background:#fff;}
 }
 
-/* ==========================================
-   ACABADO EDITORIAL: CARTOGRAFÍA Y TINTAS
-   Trazos arquitectónicos muy finos sobre blanco.
-   Color bajo la cartografía.
-========================================== */
-#cartografia {pointer-events:none;}
-.trazo-aereo {fill:none;stroke:#111;stroke-width:1.05;stroke-linejoin:round;stroke-linecap:round;opacity:.87;}
-.trazo-detalle {fill:none;stroke:#191919;stroke-width:.60;stroke-linejoin:round;stroke-linecap:round;opacity:.47;}
-.trazo-borde {fill:none;stroke:#090909;stroke-width:1.35;opacity:.83;}
-.contorno-monumento {fill:none;stroke:#151515;stroke-width:1.65;}
-.campo-fluido {pointer-events:none;}
-.zona-interactiva {pointer-events:none;}
-.zona-interaccion {pointer-events:visiblePainted;cursor:crosshair;}
-.etiqueta {font-size:12px;letter-spacing:1.45px;font-weight:700;stroke:white;stroke-width:3.4px;}
-.muestra.mezcla {background:linear-gradient(90deg,#11b9ff,#9b73e6,#ff2c92);}
-.leyenda {background:#fff;}
-
-/* RED ORGÁNICA: CONTORNOS DEFINIDOS Y UNIONES SUAVES */
-.red-organica {pointer-events:none; opacity:.92;}
-.trazo-organico, .ramificacion {fill:none; stroke-linecap:round; stroke-linejoin:round;}
-.nudo-organico {stroke:none;}
-/* Deja visibles los contornos negros del mapa sobre la red cromática */
-.trazo-aereo {stroke:#111;stroke-width:1.05;opacity:.82;}
-.trazo-detalle {stroke:#171717;stroke-width:.62;opacity:.48;}
-/* No utilizar filtros de desenfoque ni mezclas multiplicadas */
-#capas-color {isolation:isolate;}
-
-/* SOLO OCHO LUGARES · TRAMOS ORGÁNICOS DE GROSOR VARIABLE */
-.red-organica { opacity:.92; mix-blend-mode:multiply; pointer-events:none; }
-.cinta-urbana {stroke:none; pointer-events:none;}
-/* Cartografía de apoyo, discreta respecto de los datos. */
-.trazo-aereo { stroke:#111;stroke-width:1.15; opacity:.57; }
-.trazo-detalle { stroke:#282828;stroke-width:.72; opacity:.24; }
-.trazo-borde {opacity:.50;}
-.contorno-monumento {opacity:.60;}
-.leyenda {box-shadow:0 7px 25px rgba(0,0,0,.07);}
-
-/* Resaltado vectorial SVG, completamente responsivo. */
-.resaltado-vector, .resaltado-enfoque { pointer-events: none; }
+/* PLANO LLENO-VACÍO (MANZANAS SÓLIDAS GEOMÉTRICAS) DE BARRIO PUERTO */
+#cartografia-base, #cartografia { pointer-events: none; }
+.manzana-solida {
+  fill: #181818;
+  stroke: #ffffff;
+  stroke-width: 3px;
+  stroke-linejoin: miter;
+  paint-order: stroke fill;
+  fill-rule: evenodd;
+}
+.parterre-monumento {
+  fill: #181818;
+  stroke: #ffffff;
+  stroke-width: 1.6px;
+  stroke-linejoin: miter;
+  paint-order: stroke fill;
+}
+.trazo-borde {
+  fill: none;
+  stroke: #181818;
+  stroke-width: 2.4;
+  stroke-linejoin: miter;
+  stroke-linecap: square;
+}
+.contorno-monumento {
+  fill: none;
+  stroke: #181818;
+  stroke-width: 2;
+  stroke-linejoin: miter;
+}
+.campo-fluido { pointer-events: none; }
+.zona-interactiva { pointer-events: none; }
+.zona-interaccion { pointer-events: visiblePainted; cursor: crosshair; }
+.etiqueta { font-family: var(--fuente-titulos); font-size: 12px; letter-spacing: 1.45px; font-weight: 700; stroke: none; stroke-width: 0; paint-order: normal; }
+.muestra.mezcla { background: linear-gradient(90deg, var(--apertura), var(--contencion)); }
+.leyenda { background: #fff; box-shadow: 0 7px 25px rgba(0,0,0,.07); }
+body, html, .visor, .mapa { background: #fff; }
+.visor { width: 100vw; height: 100dvh; min-height: 0; }
+.mapa { width: 100vw; height: 100%; }
+@media (max-width: 650px) {
+  .etiqueta { font-size: 14px; }
+  .leyenda { background: #fff; }
+}
+#capas-color { isolation: isolate; opacity: 0.88; }
+.resaltado-mapa, .resaltado-enfoque { pointer-events: none; }
 .resaltado-enfoque { opacity: 0; transition: opacity 160ms ease; }
 .resaltado-enfoque.activo { opacity: .22; }
+
+/* Etiquetas sin contorno blanco y sin halo */
+#etiquetas .etiqueta { font-family: var(--fuente-titulos) !important; stroke: none !important; stroke-width: 0 !important; paint-order: normal; }
+</style>
+</head>
+<body>
+  <main id="visor" class="visor" aria-label="Visualización de percepción de amplitud espacial en Barrio Puerto, Valparaíso">
+    <svg id="mapa" class="mapa" viewBox="0 0 1319 1193" preserveAspectRatio="xMidYMid slice"
+      role="img" aria-label="Mapa de manzanas sólidas en blanco y negro de Barrio Puerto, con superficie plana de colores celeste y naranja que representa las respuestas de ocho lugares">
+      <defs>
+        <!-- Ramas orgánicas de anchura variable generadas directamente en SVG. -->
+      </defs>
+      <!-- Mapa vectorial dibujado íntegramente con código SVG. Sin fotografías ni imágenes -->
+      <rect x="-400" y="-300" width="2200" height="1900" fill="#ffffff" />
+      <g id="cartografia-base" aria-hidden="true"></g>
+      <g id="capas-color" aria-hidden="true"></g>
+      <g id="cartografia" aria-hidden="true"></g>
+      <g id="etiquetas" aria-hidden="true"></g>
+    </svg>
+
+    <aside class="leyenda" aria-label="Simbología de colores">
+      <div class="leyenda-titulo">SIMBOLOGÍA <span>01 — 08</span></div>
+      <div class="leyenda-linea"></div>
+      <div class="leyenda-elemento"><i class="muestra apertura"></i><span>Apertura</span></div>
+      <div class="leyenda-elemento"><i class="muestra contencion"></i><span>Contención</span></div>
+      <div class="leyenda-elemento"><i class="muestra mezcla"></i><span>Percepción compartida</span></div>
+      <div class="leyenda-linea tenue"></div>
+      <p class="leyenda-nota">Pasa el cursor sobre cada calle o espacio para levantar sus edificios tridimensionales. Los volúmenes emergen progresivamente adoptando el color de su sector; su altura y cantidad reflejan las respuestas: a mayor contención, mayor altura y densidad de edificios; a mayor apertura, menor tamaño y presencia.</p>
+      <p class="leyenda-pie">15 ENCUESTAS <span>·</span> 8 ESPACIOS</p>
+    </aside>
+
+    <div id="detalle" class="detalle" role="status" aria-live="polite" hidden>
+      <div class="detalle-encabezado"><span id="detalle-lugar"></span><span class="detalle-cerrar" aria-hidden="true">↗</span></div>
+      <div class="detalle-barra" aria-hidden="true"><span id="barra-apertura"></span><span id="barra-contencion"></span></div>
+      <div class="detalle-cifras"><span><b id="valor-apertura">0%</b> apertura</span><span><b id="valor-contencion">0%</b> contención</span></div>
+      <p class="detalle-explicacion" id="detalle-explicacion"></p>
+    </div>
+
+    <div class="instruccion" aria-hidden="true">ARRASTRAR · ZOOM RUEDA / PELLIZCAR</div>
+    <p class="solo-lectores">Desplaza el mapa arrastrándolo. Acerca o aleja con la rueda del mouse o con el gesto de pellizcar con dos dedos. Toca o pasa el mouse por una zona para consultar las respuestas y enfocar su levantamiento.</p>
+  </main>
+
+  <script>
+    "use strict";
+    // Datos: 15 registros de «Percepción de Amplitud del Espacio — Hoja 1».
+    // Una clasificación por persona y lugar: apertura + contención = 15.
+    // d define contornos aproximados sobre la cartografía vectorial dibujada en código.
+    // Para afinar una zona, edita sus coordenadas SVG a continuación.
+    const espacios = [
+      {
+        id:'echaurren', nombre:'Plaza Echaurren', apertura:10, contencion:5,
+        tipo:'area',
+        // Vacío real junto a la calle y los árboles: NO edificio.
+        d:'M 70 165 L 110 142 L 179 113 L 248 122 L 283 166 L 281 233 L 222 264 L 154 296 L 106 294 L 69 248 Z',
+        // Los levantamientos siguen el borde urbano del lado edificado, no un anillo circular.
+        guias:[
+          { lado:-1, puntos:[[245,131],[274,166],[272,222],[227,253],[166,283]], min:8, max:14, separacion:8 }
+        ],
+        etiqueta:{x:122,y:131,texto:'PLAZA ECHAURREN'}
+      },
+      {
+        id:'serrano', nombre:'Calle Serrano', apertura:0, contencion:15,
+        tipo:'calle', ancho:18,
+        d:'M 245 266 C 270 339 293 423 324 503 C 348 579 382 671 419 763 L 467 876',
+        etiqueta:{x:311,y:453,texto:'SERRANO',rotar:69}
+      },
+      {
+        id:'cochrane', nombre:'Calle Cochrane', apertura:2, contencion:13,
+        tipo:'calle', ancho:19,
+        d:'M 360 205 C 389 302 411 398 438 472 C 464 546 505 644 537 714 L 625 870',
+        etiqueta:{x:466,y:534,texto:'COCHRANE',rotar:69}
+      },
+      {
+        id:'blanco', nombre:'Calle Blanco', apertura:0, contencion:15,
+        tipo:'calle', ancho:19,
+        d:'M 485 140 C 512 234 544 354 585 468 C 620 572 667 694 713 807',
+        etiqueta:{x:557,y:351,texto:'BLANCO',rotar:71}
+      },
+      {
+        id:'errazuriz', nombre:'Avenida Errázuriz', apertura:6, contencion:9,
+        tipo:'calle', ancho:43,
+        d:'M 635 -36 C 651 120 682 269 721 400 C 759 532 808 652 851 738',
+        etiqueta:{x:718,y:350,texto:'AV. ERRÁZURIZ',rotar:72}
+      },
+      {
+        id:'muelle', nombre:'Muelle Prat', apertura:15, contencion:0,
+        tipo:'area',
+        // Explanada junto a los embarcaderos (no cubre el mar completo).
+        d:'M 1017 470 L 1091 492 L 1169 542 L 1223 578 L 1280 620 L 1307 657 L 1271 720 L 1192 700 L 1118 655 L 1053 606 L 1009 541 Z',
+        // Solo el borde urbano: no aparecen volúmenes del lado del mar.
+        guias:[
+          { lado:1, puntos:[[1016,535],[1051,575],[1111,622],[1188,670],[1267,705]], min:10, max:18, separacion:9 }
+        ],
+        etiqueta:{x:1112,y:464,texto:'MUELLE PRAT'}
+      },
+      {
+        id:'sotomayor', nombre:'Plaza Sotomayor', apertura:12, contencion:3,
+        tipo:'area',
+        // Gran espacio pavimentado abierto al costado del monumento.
+        d:'M 502 945 L 552 909 L 635 894 L 725 886 L 771 934 L 760 1007 L 716 1068 L 615 1120 L 551 1091 L 502 1017 Z',
+        // Borde edificado del perímetro, en tramos rectos y esquinas más cuadradas.
+        guias:[
+          { lado:-1, puntos:[[731,905],[752,944],[748,1000],[709,1057],[621,1106],[557,1083]], min:10, max:18, separacion:10 }
+        ],
+        etiqueta:{x:548,y:1086,texto:'PLAZA SOTOMAYOR'}
+      },
+      {
+        id:'monumento', nombre:'Monumento a los Héroes de Iquique', apertura:9, contencion:6,
+        tipo:'area',
+        // Plataforma peatonal real, separada de los edificios.
+        d:'M 786 818 L 844 799 L 878 827 L 899 872 L 845 911 L 792 895 L 775 854 Z',
+        // Sigue el marco del monumento con caras rectas, evitando una distribución circular.
+        guias:[
+          { lado:-1, puntos:[[790,852],[803,823],[843,810],[878,831],[890,870],[847,901],[801,889]], min:6, max:12, separacion:7 }
+        ],
+        etiqueta:{x:834,y:782,texto:'HÉROES DE IQUIQUE',centrado:true}
+      }
+    ];
+
+    const SVG = 'http://www.w3.org/2000/svg';
+    const svg = document.getElementById('mapa');
+    const colores = document.getElementById('capas-color');
+    const etiquetas = document.getElementById('etiquetas');
+    const visor = document.getElementById('visor');
+    const detalle = document.getElementById('detalle');
+    const total = 15;
+    const mundo = { ancho: 1319, alto: 1193 };
+    const azul = [24, 182, 230]; // Celeste (#18b6e6)
+    const naranja = [240, 84, 36]; // Naranja (#f05424)
+
+    function elementoSVG(nombre, atributos = {}) {
+      const el = document.createElementNS(SVG, nombre);
+      Object.entries(atributos).forEach(([clave, valor]) => el.setAttribute(clave, String(valor)));
+      return el;
+    }
+    function colorDe(espacio) {
+      const t = espacio.contencion / (espacio.apertura + espacio.contencion);
+      return `rgb(${azul.map((c, i) => Math.round(c * (1 - t) + naranja[i] * t)).join(',')})`;
+    }
+
+    /* =============================================================
+       PLANO DE MANZANAS SÓLIDAS GEOMÉTRICAS DE BARRIO PUERTO (1319x1193)
+       Trazado de figura-fondo (lleno-vacío) sobre la imagen satelital:
+       manzanas edificadas en negro geométrico (#181818) con patios de luz
+       y calles, pasajes, plazas y dársena abiertos en blanco/color.
+       ============================================================= */
+    const plano = document.getElementById('cartografia');
+    const manzanasSolidas = [
+      // --- FRANJA ENTRE CALLE SERRANO Y CALLE COCHRANE (Norte a Sur) ---
+      // SC-1: Manzana suroriente de Plaza Echaurren (Serrano / Valdivia / Cochrane)
+      'M 252 272 L 284 252 L 328 232 L 352 274 L 270 306 Z',
+      // SC-2: Sitio amurallado con gran patio abierto central (visible en foto satelital)
+      'M 275 318 L 357 286 L 391 378 L 309 410 Z M 291 328 L 345 306 L 369 368 L 315 390 Z',
+      // SC-3: Manzana central Serrano–Cochrane con patio de luz interior
+      'M 314 422 L 396 390 L 438 496 L 356 528 Z M 352 448 L 376 438 L 392 478 L 368 488 Z',
+      // SC-4: Manzana media Serrano–Cochrane frente a Subida Cordillera
+      'M 361 540 L 443 508 L 491 620 L 409 652 Z M 398 564 L 424 554 L 440 592 L 414 602 Z',
+      // SC-5: Manzana alargada Serrano–Cochrane norte de Pasaje Ross
+      'M 415 664 L 497 632 L 551 752 L 469 784 Z M 454 690 L 482 678 L 502 724 L 474 736 Z',
+      // SC-6: Manzana triangular / Reina Victoria convergiendo hacia Plaza Sotomayor
+      'M 475 796 L 557 764 L 601 862 L 536 902 L 512 882 Z',
+
+      // --- FRANJA ENTRE CALLE COCHRANE Y CALLE BLANCO (Norte a Sur) ---
+      // CB-0: Manzana norte de Mercado Puerto (Bustamante / Márquez)
+      'M 298 -60 L 428 -60 L 444 16 L 316 50 Z',
+      // CB-1: Mercado Puerto (gran volumen rectangular con lucernario central)
+      'M 322 64 L 446 28 L 468 136 L 352 174 Z M 366 82 L 422 64 L 434 118 L 378 136 Z',
+      // CB-2: Manzana cuadrada al suroriente del Mercado Puerto (Valdivia / Blanco)
+      'M 362 190 L 474 152 L 502 246 L 396 282 Z M 408 206 L 442 194 L 452 226 L 418 238 Z',
+      // CB-3: Manzana Cochrane–Blanco norte
+      'M 401 294 L 507 258 L 538 358 L 432 394 Z M 446 314 L 478 302 L 490 338 L 458 350 Z',
+      // CB-4: Manzana Cochrane–Blanco central
+      'M 437 406 L 543 370 L 579 484 L 479 520 Z',
+      // CB-5: Manzana Cochrane–Blanco sur-central con patio interior
+      'M 485 532 L 584 496 L 630 616 L 531 652 Z M 526 556 L 558 544 L 576 590 L 544 602 Z',
+      // CB-6: Manzana Cochrane–Blanco norte de Sotomayor
+      'M 537 664 L 635 628 L 683 738 L 589 774 Z',
+      // CB-7: Cabezal sur Cochrane–Blanco frente a Plaza Sotomayor
+      'M 595 786 L 689 750 L 710 816 L 646 856 L 631 846 Z',
+
+      // --- FRANJA ENTRE CALLE BLANCO Y AV. ERRÁZURIZ (Norte a Sur) ---
+      // BE-0: Manzana extremo norte Blanco–Errázuriz
+      'M 456 -72 L 582 -82 L 592 -24 L 470 -8 Z',
+      // BE-1: Manzana amurallada con gran vacío interior rectangular (extremo superior foto)
+      'M 474 6 L 594 -12 L 614 106 L 496 136 Z M 492 20 L 580 6 L 596 92 L 508 116 Z',
+      // BE-2: Edificio patrimonial Blanco–Errázuriz norte con patio de luz
+      'M 502 150 L 618 120 L 642 230 L 530 262 Z M 548 172 L 588 160 L 598 206 L 558 218 Z',
+      // BE-3: Edificio Blanco–Errázuriz medio-norte
+      'M 534 274 L 646 242 L 672 326 L 560 360 Z',
+      // BE-4: Gran edificio de planta cuadrada Blanco–Errázuriz central
+      'M 564 372 L 676 338 L 718 446 L 596 482 Z M 608 394 L 652 380 L 668 422 L 624 436 Z',
+      // BE-5: Segundo sitio amurallado con vacío interior entre Blanco y Errázuriz
+      'M 602 496 L 724 458 L 764 552 L 644 594 Z M 620 508 L 710 478 L 742 542 L 652 574 Z',
+      // BE-6: Gran bloque escalonado en altura al norponiente del Monumento
+      'M 650 608 L 770 566 L 844 718 L 746 792 L 728 774 Z M 698 638 L 752 618 L 788 692 L 734 714 Z',
+
+      // --- FRANJA ENTRE AV. ERRÁZURIZ Y MUELLE PRAT / DÁRSENA ---
+      // ER-1 a ER-3: Pabellones y recintos portuarios norte
+      'M 676 -36 L 768 -36 L 792 96 L 702 114 Z',
+      'M 786 -24 L 856 -12 L 866 108 L 806 116 Z',
+      'M 716 132 L 818 118 L 846 210 L 746 232 Z',
+      // ER-4: Edificio longitudinal borde oriente de Av. Errázuriz
+      'M 718 248 L 764 234 L 816 376 L 768 392 Z',
+      // ER-5: Pabellones del borde costero y embarcadero Muelle Prat
+      'M 878 214 L 936 196 L 986 286 L 928 312 Z',
+      'M 936 326 L 984 304 L 1068 482 L 1018 508 Z',
+      // ER-6: Edificio en L (Compañía Sudamericana / RPS) frente a Av. Errázuriz y Muelle Prat
+      'M 774 406 L 838 382 L 928 566 L 998 528 L 1032 588 L 922 664 L 858 580 Z M 804 436 L 828 426 L 898 570 L 874 582 Z',
+
+      // --- SECTOR NORTE Y NORPONIENTE DE PLAZA ECHAURREN (Bustamante / Clave / San Martín) ---
+      'M 188 -76 L 284 -76 L 304 12 L 204 46 Z',
+      'M 94 34 L 188 2 L 214 82 L 118 116 Z',
+      'M -4 80 L 72 48 L 104 124 L 26 158 Z M 30 92 L 58 80 L 70 108 L 42 120 Z',
+      'M -24 -28 L 58 -58 L 84 18 L 2 52 Z',
+      'M 74 -58 L 168 -88 L 192 -14 L 98 18 Z',
+      'M -170 -50 L -45 -88 L -18 -8 L -142 36 Z',
+      'M -165 55 L -32 8 L -2 88 L -135 138 Z',
+      'M -150 156 L -18 106 L 14 186 L -118 238 Z',
+
+      // --- SECTOR PONIENTE DE CALLE SERRANO Y CERRO CORDILLERA (Calle Castillo / Subida Cordillera) ---
+      // Hilera 1: Inmediata a Calle Serrano (paralela a Serrano)
+      'M 104 268 L 176 238 L 206 322 L 134 352 Z M 126 278 L 162 262 L 180 310 L 144 326 Z',
+      'M 148 368 L 220 338 L 252 422 L 180 452 Z M 170 378 L 206 362 L 226 410 L 190 426 Z',
+      'M 192 468 L 264 438 L 298 524 L 226 554 Z M 214 478 L 250 462 L 272 512 L 236 528 Z',
+      'M 236 570 L 308 540 L 344 628 L 272 658 Z M 258 580 L 294 564 L 318 616 L 282 632 Z',
+      'M 280 674 L 352 644 L 390 732 L 318 762 Z M 302 684 L 338 668 L 364 720 L 328 736 Z',
+      'M 324 778 L 396 748 L 436 838 L 364 868 Z M 346 788 L 382 772 L 410 826 L 374 842 Z',
+      // Hilera 2: Manzanas intermedias Calle Castillo (paralelas y perfectamente alineadas)
+      'M 8 310 L 80 280 L 110 364 L 38 394 Z M 30 320 L 66 304 L 84 352 L 48 368 Z',
+      'M 52 410 L 124 380 L 156 464 L 84 494 Z M 74 420 L 110 404 L 130 452 L 94 468 Z',
+      'M 96 510 L 168 480 L 202 566 L 130 596 Z M 118 520 L 154 504 L 176 554 L 140 570 Z',
+      'M 140 612 L 212 582 L 248 670 L 176 700 Z M 162 622 L 198 606 L 222 658 L 186 674 Z',
+      'M 184 716 L 256 686 L 294 774 L 222 804 Z M 206 726 L 242 710 L 268 762 L 232 778 Z',
+      'M 228 820 L 300 790 L 340 880 L 268 910 Z M 250 830 L 286 814 L 314 868 L 278 884 Z',
+      // Hilera 3: Ladera de Cerro Cordillera (cuadrados regulares sin deformaciones)
+      'M -88 352 L -16 322 L 14 406 L -58 436 Z',
+      'M -44 452 L 28 422 L 60 506 L -12 536 Z',
+      'M 0 552 L 72 522 L 106 608 L 34 638 Z',
+      'M 44 654 L 116 624 L 152 712 L 80 742 Z',
+      'M 88 758 L 160 728 L 198 816 L 126 846 Z',
+      'M 132 862 L 204 832 L 244 922 L 172 952 Z',
+      // Hilera 4: Borde poniente exterior continuo
+      'M -184 394 L -112 364 L -82 448 L -154 478 Z',
+      'M -140 494 L -68 464 L -36 548 L -108 578 Z',
+      'M -96 594 L -24 564 L 10 650 L -62 680 Z',
+      'M -52 696 L 20 666 L 56 754 L -16 784 Z',
+      'M -8 800 L 64 770 L 102 858 L 30 888 Z',
+      'M 36 904 L 108 874 L 148 964 L 76 994 Z',
+
+      // --- SECTOR SURPONIENTE DE PLAZA SOTOMAYOR (Edificio Armada de Chile y entorno) ---
+      // Ala norte y Palacio de la Comandancia en Jefe de la Armada (planta en U hacia Sotomayor)
+      'M 312 918 L 458 868 L 486 942 L 342 996 Z M 356 922 L 434 894 L 448 932 L 370 960 Z',
+      'M 332 1022 L 478 964 L 542 1096 L 472 1134 L 444 1078 L 408 1096 L 436 1152 L 382 1178 Z',
+      // Manzanas vecinas al poniente y sur de la Armada
+      'M -8 892 L 68 848 L 114 928 L 34 978 Z',
+      'M 82 952 L 158 902 L 204 976 L 126 1028 Z',
+      'M 206 942 L 288 892 L 322 964 L 240 1012 Z',
+      'M -12 1038 L 78 986 L 128 1072 L 36 1126 Z',
+      'M 118 1058 L 214 1004 L 264 1096 L 166 1152 Z',
+      'M 242 1088 L 322 1046 L 374 1164 L 292 1204 Z',
+      'M 24 1148 L 138 1092 L 184 1186 L 68 1244 Z',
+      'M 168 1174 L 268 1124 L 314 1218 L 212 1268 Z',
+      'M 378 1194 L 552 1112 L 582 1196 L 414 1272 Z',
+
+      // --- SECTOR SURORIENTE Y ORIENTE DE SOTOMAYOR / MONUMENTO (Ex Correos, Prat, Esmeralda, Estación Puerto) ---
+      // Borde sur de Plaza Sotomayor
+      'M 644 1136 L 712 1072 L 784 1138 L 714 1204 Z',
+      // Edificio Sudamericana / Turri (costado suroriente de Sotomayor)
+      'M 758 1054 L 840 988 L 896 1036 L 812 1112 Z',
+      // Edificio Ministerio de las Culturas (Ex Correos) y manzana con gran patio cuadrado
+      'M 874 958 L 964 880 L 1026 930 L 934 1014 Z M 910 956 L 960 912 L 990 938 L 940 982 Z',
+      // Complejo Estación Puerto y Aduana Portuaria (al oriente del Monumento)
+      'M 1024 846 L 1102 744 L 1184 812 L 1104 914 Z M 1062 842 L 1104 788 L 1144 820 L 1102 874 Z',
+      'M 1126 726 L 1232 714 L 1296 786 L 1204 862 L 1192 802 Z',
+      'M 1248 708 L 1326 684 L 1388 758 L 1312 812 Z',
+      // Segunda y tercera línea de manzanas hacia Calle Prat, Esmeralda y Blanco Sur
+      'M 824 1122 L 912 1044 L 986 1112 L 896 1192 Z M 862 1120 L 910 1078 L 946 1110 L 898 1152 Z',
+      'M 948 1026 L 1038 944 L 1116 1016 L 1024 1100 Z M 988 1024 L 1036 980 L 1074 1014 L 1026 1058 Z',
+      'M 1118 926 L 1202 828 L 1288 902 L 1202 1002 Z M 1158 922 L 1202 870 L 1244 906 L 1200 958 Z',
+      'M 1004 1114 L 1094 1034 L 1176 1110 L 1084 1194 Z',
+      'M 1138 1028 L 1228 946 L 1314 1026 L 1222 1110 Z M 1180 1026 L 1226 984 L 1268 1022 L 1222 1064 Z',
+      'M 728 1216 L 814 1138 L 892 1212 L 804 1292 Z',
+      'M 914 1206 L 1002 1128 L 1082 1204 L 992 1284 Z',
+      'M 1102 1208 L 1194 1126 L 1278 1204 L 1184 1288 Z',
+      'M 1238 876 L 1322 798 L 1412 882 L 1326 962 Z',
+      'M 1244 1124 L 1336 1042 L 1426 1126 L 1332 1210 Z',
+      'M 1340 976 L 1428 898 L 1516 982 L 1426 1062 Z'
+    ];
+
+    const pathManzanas = document.createElementNS(SVG, 'path');
+    pathManzanas.setAttribute('class', 'manzana-solida');
+    pathManzanas.setAttribute('d', manzanasSolidas.join(' '));
+    plano.appendChild(pathManzanas);
+
+    // Parterres geométricos y basamento central del Monumento a los Héroes de Iquique
+    const parterresMonumento = [
+      'M 804 824 L 842 810 L 850 826 L 814 838 Z',
+      'M 862 832 L 876 828 L 890 864 L 872 872 Z',
+      'M 828 886 L 866 874 L 874 888 L 842 902 Z',
+      'M 786 854 L 802 846 L 816 880 L 798 888 Z',
+      'M 826 844 L 850 836 L 858 858 L 834 866 Z'
+    ];
+    const pathParterres = document.createElementNS(SVG, 'path');
+    pathParterres.setAttribute('class', 'parterre-monumento');
+    pathParterres.setAttribute('d', parterresMonumento.join(' '));
+    plano.appendChild(pathParterres);
+
+    // Líneas de borde de la dársena portuaria y plataforma del monumento
+    const limites = [
+      // Borde de la dársena y muelle de abrigo al oriente del Muelle Prat
+      'M 865 -10 L 865 56 L 882 102 L 924 163 L 971 239 L 1000 302 L 1046 380 L 1100 456 L 1183 524 L 1317 614',
+      // Vereda octogonal del Monumento a los Héroes de Iquique
+      'M 784 814 L 844 793 L 883 822 L 904 871 L 848 919 L 785 897 L 766 854 Z'
+    ];
+    limites.forEach((d,i) => {
+      const node = document.createElementNS(SVG,'path');
+      node.setAttribute('d',d);
+      node.setAttribute('class',i===1?'contorno-monumento':'trazo-borde');
+      plano.appendChild(node);
+    });
+
+    // La capa de color se construye en el segundo script directamente en SVG,
+    // usando los resultados de cada lugar sin halos cromáticos externos.
+    function activarEspacio(id, activo, coord) {
+      document.querySelectorAll(`[data-resaltado="${id}"]`).forEach(el => {
+        el.classList.toggle('activo', activo);
+      });
+      if (window.enfocarSector) {
+        window.enfocarSector(activo ? id : null, coord);
+      }
+    }
+
+    // Los polígonos y las calles siguen siendo clicables e interactivos
+    espacios.forEach(espacio => {
+      const grupo = elementoSVG('g', {'class':'zona-interactiva', 'data-lugar':espacio.id});
+      const area = espacio.tipo === 'area';
+      const atributos = area
+        ? {d:espacio.d, fill:'rgba(0,0,0,0.001)', 'pointer-events':'all'}
+        : {d:espacio.d, fill:'none', stroke:'rgba(0,0,0,0.001)',
+           'stroke-width':Math.max(espacio.ancho+48,68),
+           'stroke-linecap':'round', 'stroke-linejoin':'round',
+           'pointer-events':'stroke'};
+      const hit = elementoSVG('path', {
+        ...atributos, 'class':'zona-interaccion',
+        tabindex:0, role:'button',
+        'aria-label':`${espacio.nombre}: ${espacio.apertura} apertura y ${espacio.contencion} contención`
+      });
+      grupo.appendChild(hit);
+      colores.appendChild(grupo);
+      hit.addEventListener('pointerenter', ev => {
+        if (!detalleFijo) mostrarDetalle(espacio, ev);
+        activarEspacio(espacio.id, true, ev);
+      });
+      hit.addEventListener('pointermove', ev => moverDetalle(ev));
+      hit.addEventListener('pointerleave', () => {
+        if (!detalleFijo) {
+          ocultarDetalle();
+          activarEspacio(espacio.id, false);
+        }
+      });
+      hit.addEventListener('click', ev => {
+        if (apuntadorMovido) return;
+        ev.stopPropagation();
+        espacios.forEach(e => activarEspacio(e.id, false));
+        detalleFijo = false;
+        mostrarDetalle(espacio, ev);
+        detalleFijo = true;
+        activarEspacio(espacio.id, true, ev);
+      });
+      hit.addEventListener('keydown', ev => {
+        if(ev.key==='Enter'||ev.key===' '){
+          ev.preventDefault();
+          espacios.forEach(e => activarEspacio(e.id, false));
+          detalleFijo=false;
+          mostrarDetalle(espacio,null);
+          detalleFijo=true;
+          activarEspacio(espacio.id, true, null);
+        }
+      });
+      const et = elementoSVG('text',{
+        x:espacio.etiqueta.x, y:espacio.etiqueta.y,
+        'class':'etiqueta',
+        'text-anchor':espacio.etiqueta.centrado?'middle':'start',
+        ...(espacio.etiqueta.rotar ? {
+          transform:`rotate(${espacio.etiqueta.rotar} ${espacio.etiqueta.x} ${espacio.etiqueta.y})`
+        } : {})
+      });
+      et.textContent=espacio.etiqueta.texto;
+      etiquetas.appendChild(et);
+    });
+
+    let detalleFijo = false;
+    let apuntadorMovido = false;
+    function porcentaje(cantidad) {
+      return Number((cantidad / total * 100).toFixed(1)).toLocaleString('es-CL') + '%';
+    }
+    function mostrarDetalle(e, evento) {
+      if (apuntadorMovido) return;
+      document.getElementById('detalle-lugar').textContent = e.nombre;
+      document.getElementById('valor-apertura').textContent = porcentaje(e.apertura);
+      document.getElementById('valor-contencion').textContent = porcentaje(e.contencion);
+      document.getElementById('detalle-explicacion').textContent =
+        `${e.apertura} de ${total} personas perciben apertura; ` +
+        `${e.contencion} de ${total} personas perciben contención.`;
+      document.getElementById('barra-apertura').style.width = `${e.apertura / total * 100}%`;
+      document.getElementById('barra-contencion').style.width = `${e.contencion / total * 100}%`;
+      detalle.hidden = false;
+      if (evento) moverDetalle(evento);
+      else { detalle.style.left = '50%'; detalle.style.top = '24px'; }
+    }
+    function moverDetalle(evento) {
+      if (detalle.hidden || detalleFijo || apuntadorMovido) return;
+      const r = visor.getBoundingClientRect();
+      const ancho = detalle.offsetWidth || 216;
+      const alto = detalle.offsetHeight || 172;
+      const x = Math.min(Math.max(12,r.width - ancho - 12), Math.max(12, evento.clientX - r.left + 17));
+      const y = Math.min(Math.max(12,r.height - alto - 12), Math.max(12, evento.clientY - r.top + 15));
+      detalle.style.left = `${x}px`;
+      detalle.style.top = `${y}px`;
+    }
+    function ocultarDetalle() { detalle.hidden = true; }
+
+    // Cámara 100% pantalla: encuadre centrado y equilibrado de Barrio Puerto.
+    // Permite ver desde Plaza Echaurren hasta Sotomayor y Muelle Prat con márgenes confortables.
+    let zoom = 1;
+    let centro = {x: 610, y: 560};
+    let vista = {ancho: 1520, alto: 1300};
+    const ZOOM_MIN = 0.55;
+    const ZOOM_MAX = 6.0;
+    const cursores = new Map();
+    let arrastre = null;
+    let pellizco = null;
+    const LIMITES = {minX: -260, maxX: 1560, minY: -160, maxY: 1360};
+
+    function dimensiones(z = zoom) {
+      const r = visor.getBoundingClientRect();
+      // Encuadre centrado y un poco más pequeño con márgenes equilibrados
+      const base = Math.min(r.width / 1520, r.height / 1300);
+      const escala = base * z;
+      return {ancho: r.width / escala, alto: r.height / escala};
+    }
+    function pintarCamara() {
+      vista = dimensiones();
+      const {ancho, alto} = vista;
+      const anchura = LIMITES.maxX - LIMITES.minX;
+      const altura = LIMITES.maxY - LIMITES.minY;
+      centro.x = ancho >= anchura ? (LIMITES.minX + LIMITES.maxX) / 2 : Math.max(LIMITES.minX + ancho / 2, Math.min(LIMITES.maxX - ancho / 2, centro.x));
+      centro.y = alto >= altura ? (LIMITES.minY + LIMITES.maxY) / 2 : Math.max(LIMITES.minY + alto / 2, Math.min(LIMITES.maxY - alto / 2, centro.y));
+      svg.setAttribute('viewBox', [centro.x - ancho / 2, centro.y - alto / 2, ancho, alto].join(' '));
+    }
+    function coordenadaPantalla(cx, cy) {
+      const r = svg.getBoundingClientRect();
+      const fx = (cx - r.left) / r.width;
+      const fy = (cy - r.top) / r.height;
+      return {x: centro.x + (fx - 0.5) * vista.ancho, y: centro.y + (fy - 0.5) * vista.alto, fx, fy};
+    }
+    function cambiarZoom(nuevoZoom, cx, cy) {
+      const ancla = coordenadaPantalla(cx ?? innerWidth / 2, cy ?? innerHeight / 2);
+      zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, nuevoZoom));
+      const d = dimensiones();
+      centro.x = ancla.x - (ancla.fx - 0.5) * d.ancho;
+      centro.y = ancla.y - (ancla.fy - 0.5) * d.alto;
+      pintarCamara();
+    }
+    function restablecer() {
+      zoom = 1;
+      centro = {x: 610, y: 560};
+      ocultarDetalle(); detalleFijo = false;
+      pintarCamara();
+    }
+
+    visor.addEventListener('wheel', ev => {
+      if (ev.target.closest('.leyenda, .detalle')) return;
+      ev.preventDefault();
+      cambiarZoom(zoom * Math.exp(-ev.deltaY * 0.0014), ev.clientX, ev.clientY);
+    }, {passive: false});
+    svg.addEventListener('dblclick', restablecer);
+
+    svg.addEventListener('pointerdown', ev => {
+      if (ev.button !== 0 && ev.pointerType === 'mouse') return;
+      svg.setPointerCapture(ev.pointerId);
+      cursores.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
+      apuntadorMovido = false;
+      if (cursores.size === 1) {
+        arrastre = {x: ev.clientX, y: ev.clientY, inicioX: ev.clientX, inicioY: ev.clientY};
+        pellizco = null;
+      } else if (cursores.size === 2) {
+        const [p1,p2] = [...cursores.values()];
+        pellizco = {distancia: Math.hypot(p2.x - p1.x, p2.y - p1.y), zoom};
+        arrastre = null;
+      }
+    });
+    svg.addEventListener('pointermove', ev => {
+      if (!cursores.has(ev.pointerId)) return;
+      const prev = cursores.get(ev.pointerId);
+      cursores.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
+      if (cursores.size === 2 && pellizco) {
+        const [a,b] = [...cursores.values()];
+        const distancia = Math.hypot(b.x - a.x,b.y - a.y);
+        apuntadorMovido = true;
+        cambiarZoom(pellizco.zoom * distancia / pellizco.distancia, (a.x+b.x)/2, (a.y+b.y)/2);
+        return;
+      }
+      if (arrastre && cursores.size === 1) {
+        const dx = ev.clientX - prev.x;
+        const dy = ev.clientY - prev.y;
+        if (Math.hypot(ev.clientX - arrastre.inicioX, ev.clientY - arrastre.inicioY) > 5) {
+          apuntadorMovido = true;
+          ocultarDetalle();
+          centro.x -= dx * vista.ancho / visor.clientWidth;
+          centro.y -= dy * vista.alto / visor.clientHeight;
+          pintarCamara();
+          svg.classList.add('arrastrando');
+        }
+      }
+    });
+    function finalizarPuntero(ev) {
+      cursores.delete(ev.pointerId);
+      svg.classList.remove('arrastrando');
+      if (cursores.size === 0) { arrastre = null; pellizco = null; }
+      else if (cursores.size === 1) {
+        const p = [...cursores.values()][0];
+        arrastre = {...p, inicioX: p.x, inicioY: p.y};
+        pellizco = null;
+      }
+    }
+    svg.addEventListener('pointerup', finalizarPuntero);
+    svg.addEventListener('pointercancel', finalizarPuntero);
+    svg.addEventListener('click', ev => {
+      if (!ev.target.closest('.zona-interaccion') && !apuntadorMovido) {
+        ocultarDetalle(); detalleFijo = false;
+      }
+      if (apuntadorMovido) { ev.stopPropagation(); apuntadorMovido = false; }
+    });
+    document.addEventListener('keydown', ev => {
+      if (ev.key === 'Escape') { ocultarDetalle(); detalleFijo = false; }
+      if (ev.key === '+' || ev.key === '=') cambiarZoom(zoom * 1.25);
+      if (ev.key === '-') cambiarZoom(zoom / 1.25);
+      if (ev.key === '0') restablecer();
+      const paso = 85 / zoom;
+      if (ev.key === 'ArrowLeft') centro.x -= paso;
+      if (ev.key === 'ArrowRight') centro.x += paso;
+      if (ev.key === 'ArrowUp') centro.y -= paso;
+      if (ev.key === 'ArrowDown') centro.y += paso;
+      if (ev.key.startsWith('Arrow')) {ev.preventDefault(); pintarCamara();}
+    });
+    window.addEventListener('resize', pintarCamara);
+    pintarCamara();
+  </script>
+<script>
+/* ===============================================================
+   RESALTADO VECTORIAL / DATOS REALES: 15 respuestas por lugar.
+   Las zonas de color se asignan por proximidad a los recorridos
+   representativos de cada lugar, SIN teñir zonas de 0 votos.
+   La única máscara difuminada es la del CONTORNO general.
+   Todo permanece en SVG; funciona al hacer zoom o cambiar pantalla.
+   =============================================================== */
+(() => {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.getElementById('mapa');
+  const grupo = document.getElementById('capas-color');
+  const defs = svg.querySelector('defs');
+  const crear = (tipo, atributos = {}) => {
+    const elemento = document.createElementNS(ns, tipo);
+    Object.entries(atributos).forEach(([clave, valor]) => elemento.setAttribute(clave, String(valor)));
+    return elemento;
+  };
+
+  // Conserva las mismas 8 zonas clicables y sus eventos.
+  const zonasClicables = [...grupo.querySelectorAll(':scope > .zona-interactiva')];
+  grupo.replaceChildren();
+
+  // Misma figura aprobada, con esquinas curvas, incrustada como SVG.
+    const silueta = `M1308.8 73.9 Q1308.0 74.0 1308.0 74.8 L1308.0 76.2 Q1308.0 77.0 1308.6 77.6 L1310.9 79.9 Q1312.0 81.0 1313.6 81.3 L1316.3 81.7 Q1318.0 82.0 1318.0 80.3 L1318.0 75.5 Q1318.0 73.0 1315.5 73.3 Z
+M1194.0 4.5 Q1194.0 0.0 1189.5 0.0 L865.5 0.0 Q861.0 0.0 861.4 4.5 L871.7 108.8 Q872.0 112.0 872.8 115.1 L874.3 120.6 Q875.0 123.0 876.1 125.2 L877.9 128.8 Q879.0 131.0 880.5 133.0 L913.3 175.4 Q916.0 179.0 918.9 182.4 L960.1 231.6 Q963.0 235.0 965.6 238.7 L972.4 248.4 Q975.0 252.0 976.4 256.2 L978.6 262.8 Q980.0 267.0 980.7 271.4 L990.3 329.6 Q991.0 334.0 991.9 338.4 L1001.1 380.6 Q1002.0 385.0 1004.2 389.0 L1011.8 403.0 Q1014.0 407.0 1016.5 410.8 L1070.6 493.3 Q1073.0 497.0 1074.4 501.2 L1076.6 507.8 Q1078.0 512.0 1077.8 516.4 L1077.2 526.5 Q1077.0 531.0 1076.1 535.4 L1067.9 577.6 Q1067.0 582.0 1067.0 586.5 L1067.0 593.5 Q1067.0 598.0 1068.3 602.3 L1071.6 612.7 Q1073.0 617.0 1074.8 621.1 L1085.9 646.4 Q1087.0 649.0 1087.0 651.8 L1087.0 656.8 Q1087.0 659.0 1085.3 660.4 L1082.7 662.6 Q1081.0 664.0 1078.8 664.0 L1074.5 664.0 Q1072.0 664.0 1069.6 663.4 L1048.1 658.0 Q1044.0 657.0 1039.8 657.3 L1033.2 657.7 Q1029.0 658.0 1024.9 659.0 L965.4 673.9 Q961.0 675.0 956.9 676.8 L932.8 687.2 Q931.0 688.0 929.0 688.0 L926.0 688.0 Q924.0 688.0 922.2 687.2 L919.0 685.8 Q917.0 685.0 915.6 683.4 L906.9 673.4 Q904.0 670.0 901.7 666.1 L854.3 585.9 Q852.0 582.0 850.1 577.9 L805.9 486.1 Q804.0 482.0 802.3 477.8 L762.7 378.2 Q761.0 374.0 759.6 369.7 L707.4 215.3 Q706.0 211.0 705.0 206.6 L669.5 45.4 Q669.0 43.0 667.9 40.8 L666.1 37.2 Q665.0 35.0 663.2 33.2 L659.3 29.3 Q658.0 28.0 656.3 27.2 L653.7 25.8 Q652.0 25.0 650.2 24.5 L619.2 16.6 Q617.0 16.0 614.8 16.0 L610.6 16.0 Q609.0 16.0 607.6 16.8 L605.4 18.2 Q604.0 19.0 603.4 20.5 L601.8 24.8 Q601.0 27.0 601.2 29.4 L601.7 36.4 Q602.0 40.0 602.7 43.6 L631.1 189.6 Q632.0 194.0 633.1 198.4 L651.9 270.6 Q653.0 275.0 654.4 279.3 L666.6 317.7 Q668.0 322.0 669.7 326.2 L722.3 455.8 Q724.0 460.0 725.8 464.1 L765.2 551.9 Q767.0 556.0 769.0 560.0 L804.0 632.0 Q806.0 636.0 808.2 639.9 L838.8 695.1 Q841.0 699.0 842.7 703.2 L849.1 718.9 Q850.0 721.0 849.4 723.2 L848.6 726.8 Q848.0 729.0 846.4 730.6 L841.5 735.5 Q839.0 738.0 836.0 739.9 L786.8 770.6 Q783.0 773.0 779.6 776.0 L761.2 792.1 Q759.0 794.0 756.5 795.4 L752.2 797.8 Q750.0 799.0 747.5 798.7 L743.5 798.3 Q741.0 798.0 739.2 796.2 L736.0 793.0 Q734.0 791.0 732.7 788.6 L728.1 780.0 Q726.0 776.0 724.1 771.9 L653.9 617.1 Q652.0 613.0 650.3 608.8 L592.7 464.2 Q591.0 460.0 589.8 455.7 L560.2 349.3 Q559.0 345.0 557.6 340.7 L511.4 195.3 Q510.0 191.0 508.9 186.6 L494.1 128.4 Q493.0 124.0 492.2 119.6 L486.8 88.4 Q486.0 84.0 484.9 79.6 L472.1 27.4 Q471.0 23.0 470.4 18.5 L468.6 4.5 Q468.0 0.0 463.5 0.0 L441.5 0.0 Q437.0 0.0 437.2 4.5 L437.8 14.5 Q438.0 19.0 439.4 23.3 L443.6 36.7 Q445.0 41.0 445.9 45.4 L452.1 76.6 Q453.0 81.0 454.3 85.3 L457.7 96.7 Q459.0 101.0 459.9 105.4 L470.1 157.6 Q471.0 162.0 472.2 166.3 L480.8 197.7 Q482.0 202.0 483.5 206.3 L508.5 279.7 Q510.0 284.0 511.2 288.3 L553.8 440.7 Q555.0 445.0 556.5 449.2 L581.5 517.8 Q583.0 522.0 584.7 526.2 L631.3 641.8 Q633.0 646.0 634.9 650.1 L661.1 706.9 Q663.0 711.0 665.1 715.0 L686.9 757.0 Q689.0 761.0 690.8 765.1 L709.6 808.7 Q711.0 812.0 711.0 815.6 L711.0 821.4 Q711.0 825.0 708.7 827.8 L703.8 833.6 Q701.0 837.0 697.1 839.0 L680.0 847.9 Q676.0 850.0 671.8 851.7 L653.1 859.2 Q651.0 860.0 648.8 860.0 L644.3 860.0 Q643.0 860.0 641.9 859.4 L640.1 858.6 Q639.0 858.0 638.2 857.1 L633.2 851.5 Q631.0 849.0 629.5 846.0 L550.0 681.1 Q548.0 677.0 546.2 672.9 L531.8 641.1 Q530.0 637.0 528.4 632.8 L504.6 570.2 Q503.0 566.0 500.9 562.0 L490.1 541.0 Q488.0 537.0 486.3 532.8 L439.7 419.2 Q438.0 415.0 436.5 410.8 L417.5 357.2 Q416.0 353.0 414.7 348.7 L403.3 309.3 Q402.0 305.0 400.3 300.8 L379.7 250.2 Q378.0 246.0 376.1 241.9 L359.9 206.1 Q358.0 202.0 355.4 198.4 L347.6 187.6 Q345.0 184.0 343.1 179.9 L335.9 164.1 Q334.0 160.0 331.1 156.5 L321.9 145.5 Q319.0 142.0 316.7 138.1 L302.6 114.7 Q301.0 112.0 298.8 109.8 L295.2 106.2 Q293.0 104.0 290.4 102.2 L279.3 94.6 Q277.0 93.0 274.5 91.9 L270.5 90.1 Q268.0 89.0 265.3 88.8 L260.1 88.3 Q257.0 88.0 254.1 89.0 L238.3 94.5 Q234.0 96.0 229.9 97.8 L177.3 120.5 Q174.0 122.0 170.4 122.3 L164.6 122.7 Q161.0 123.0 157.6 121.7 L150.6 119.0 Q148.0 118.0 145.2 118.0 L140.1 118.0 Q138.0 118.0 136.0 118.8 L133.0 120.2 Q131.0 121.0 129.5 122.5 L126.7 125.3 Q125.0 127.0 124.4 129.3 L122.8 135.6 Q122.0 139.0 120.0 141.8 L116.2 146.9 Q114.0 150.0 110.7 152.0 L79.4 170.9 Q76.0 173.0 73.2 175.8 L68.8 180.2 Q66.0 183.0 64.5 186.7 L58.6 201.1 Q57.0 205.0 56.4 209.2 L55.6 215.8 Q55.0 220.0 56.3 224.0 L58.6 230.8 Q60.0 235.0 62.3 238.8 L76.6 262.2 Q79.0 266.0 80.9 270.1 L85.2 279.2 Q87.0 283.0 87.6 287.2 L88.5 294.0 Q89.0 298.0 87.9 301.9 L85.6 309.8 Q85.0 312.0 86.1 314.0 L87.9 317.0 Q89.0 319.0 91.1 319.9 L99.1 323.3 Q103.0 325.0 106.3 327.7 L112.8 333.2 Q115.0 335.0 117.8 335.6 L123.1 336.6 Q125.0 337.0 126.4 335.6 L128.6 333.4 Q130.0 332.0 130.6 330.1 L133.7 320.8 Q135.0 317.0 138.4 314.8 L143.6 311.2 Q147.0 309.0 150.8 307.5 L193.4 291.0 Q196.0 290.0 198.8 290.0 L203.2 290.0 Q206.0 290.0 208.2 291.7 L213.2 295.8 Q216.0 298.0 217.3 301.3 L323.4 575.8 Q325.0 580.0 327.1 584.0 L393.9 710.0 Q396.0 714.0 398.0 718.1 L424.0 771.9 Q426.0 776.0 427.7 780.2 L438.3 805.8 Q440.0 810.0 442.0 814.0 L485.7 900.4 Q487.0 903.0 487.8 905.8 L489.2 910.2 Q490.0 913.0 490.3 915.9 L491.7 931.7 Q492.0 935.0 493.1 938.1 L494.9 942.9 Q496.0 946.0 497.5 948.9 L528.0 1009.0 Q530.0 1013.0 531.8 1017.1 L560.2 1082.9 Q562.0 1087.0 563.3 1091.3 L582.7 1152.7 Q584.0 1157.0 584.5 1161.5 L587.5 1187.5 Q588.0 1192.0 592.5 1192.0 L633.5 1192.0 Q638.0 1192.0 640.0 1188.0 L644.5 1179.0 Q646.0 1176.0 646.0 1172.6 L646.0 1167.4 Q646.0 1164.0 645.2 1160.7 L640.6 1143.2 Q640.0 1141.0 640.0 1138.8 L640.0 1135.2 Q640.0 1133.0 640.8 1130.9 L642.2 1127.2 Q643.0 1125.0 644.6 1123.2 L655.0 1111.4 Q658.0 1108.0 661.4 1105.0 L690.6 1079.0 Q694.0 1076.0 697.8 1073.6 L707.1 1067.8 Q710.0 1066.0 713.4 1066.8 L718.6 1068.2 Q722.0 1069.0 724.3 1071.6 L735.0 1083.6 Q738.0 1087.0 741.3 1090.1 L779.0 1126.1 Q781.0 1128.0 783.5 1129.1 L787.9 1131.1 Q790.0 1132.0 792.2 1131.7 L796.0 1131.3 Q798.0 1131.0 799.1 1129.3 L800.9 1126.7 Q802.0 1125.0 801.4 1123.1 L800.6 1120.0 Q800.0 1118.0 798.8 1116.4 L790.7 1105.6 Q788.0 1102.0 784.8 1098.8 L769.2 1083.2 Q766.0 1080.0 763.3 1076.4 L754.7 1065.3 Q753.0 1063.0 752.4 1060.2 L751.4 1055.1 Q751.0 1053.0 751.8 1051.0 L753.2 1048.0 Q754.0 1046.0 755.6 1044.6 L807.5 1001.9 Q811.0 999.0 814.8 996.6 L835.1 984.2 Q837.0 983.0 839.2 983.0 L842.8 983.0 Q845.0 983.0 847.0 984.0 L850.8 985.9 Q853.0 987.0 854.7 988.8 L889.5 1026.3 Q891.0 1028.0 893.0 1029.1 L896.0 1030.9 Q898.0 1032.0 900.2 1031.8 L906.0 1031.1 Q907.0 1031.0 907.6 1030.2 L908.4 1028.8 Q909.0 1028.0 909.0 1027.0 L909.0 1020.8 Q909.0 1018.0 907.8 1015.5 L905.4 1010.1 Q904.0 1007.0 901.7 1004.5 L876.9 977.1 Q875.0 975.0 873.6 972.5 L871.2 968.2 Q870.0 966.0 869.7 963.5 L869.3 959.5 Q869.0 957.0 870.1 954.8 L871.9 951.2 Q873.0 949.0 874.8 947.2 L879.5 942.5 Q882.0 940.0 884.7 937.7 L955.4 879.4 Q957.0 878.0 959.0 877.2 L962.0 875.8 Q964.0 875.0 966.1 875.4 L971.9 876.4 Q975.0 877.0 977.3 879.2 L1017.4 917.4 Q1019.0 919.0 1021.0 920.1 L1024.0 921.9 Q1026.0 923.0 1028.3 923.0 L1033.7 923.0 Q1036.0 923.0 1038.0 921.9 L1041.0 920.1 Q1043.0 919.0 1044.5 917.3 L1052.7 908.5 Q1055.0 906.0 1055.3 902.6 L1055.8 896.2 Q1056.0 894.0 1054.9 892.0 L1053.1 889.0 Q1052.0 887.0 1050.5 885.4 L1024.1 857.3 Q1022.0 855.0 1020.6 852.2 L1018.0 847.0 Q1017.0 845.0 1017.3 842.8 L1017.7 839.2 Q1018.0 837.0 1019.2 835.1 L1022.3 829.8 Q1024.0 827.0 1026.1 824.5 L1096.1 742.4 Q1099.0 739.0 1102.2 735.8 L1116.1 721.9 Q1118.0 720.0 1120.2 718.6 L1123.8 716.4 Q1126.0 715.0 1128.6 714.5 L1136.8 712.8 Q1141.0 712.0 1145.3 711.9 L1226.5 710.1 Q1231.0 710.0 1235.3 708.7 L1261.7 700.3 Q1266.0 699.0 1270.1 697.2 L1305.4 682.1 Q1308.0 681.0 1310.8 680.7 L1315.2 680.3 Q1318.0 680.0 1318.0 677.2 L1318.0 507.0 Q1318.0 505.0 1316.0 504.4 L1313.0 503.6 Q1311.0 503.0 1309.5 501.7 L1306.0 498.7 Q1304.0 497.0 1302.9 494.7 L1298.8 485.8 Q1298.0 484.0 1298.0 482.0 L1298.0 478.0 Q1298.0 477.0 1298.6 476.2 L1299.5 474.7 Q1300.0 474.0 1300.8 474.0 L1302.2 474.0 Q1303.0 474.0 1303.7 474.5 L1310.6 479.9 Q1312.0 481.0 1313.7 481.6 L1316.3 482.4 Q1318.0 483.0 1318.0 481.2 L1318.0 135.8 Q1318.0 134.0 1316.3 133.4 L1313.7 132.6 Q1312.0 132.0 1310.9 130.6 L1299.9 117.5 Q1297.0 114.0 1293.0 111.9 L1286.0 108.1 Q1282.0 106.0 1279.0 102.7 L1266.0 88.3 Q1263.0 85.0 1261.2 80.9 L1255.6 68.4 Q1255.0 67.0 1253.9 65.9 L1252.1 64.1 Q1251.0 63.0 1249.6 62.3 L1243.8 59.4 Q1241.0 58.0 1238.8 55.8 L1228.2 45.2 Q1225.0 42.0 1221.1 39.8 L1208.1 32.7 Q1205.0 31.0 1202.5 28.5 L1197.1 23.1 Q1196.0 22.0 1195.4 20.6 L1194.6 18.4 Q1194.0 17.0 1194.0 15.5 Z
+M319.9 235.9 Q322.0 235.0 324.2 235.0 L327.8 235.0 Q330.0 235.0 331.9 236.2 L335.8 238.6 Q338.0 240.0 339.2 242.3 L353.9 270.0 Q356.0 274.0 357.7 278.2 L368.3 303.8 Q370.0 308.0 371.4 312.3 L392.6 378.7 Q394.0 383.0 395.5 387.2 L414.5 438.8 Q416.0 443.0 417.8 447.1 L436.2 490.9 Q438.0 495.0 439.9 499.1 L470.1 562.9 Q472.0 567.0 473.4 571.3 L487.6 612.7 Q489.0 617.0 490.7 621.2 L502.3 649.8 Q504.0 654.0 505.9 658.1 L552.1 756.9 Q554.0 761.0 556.2 764.9 L568.8 788.1 Q571.0 792.0 572.9 796.1 L600.7 855.2 Q602.0 858.0 602.0 861.1 L602.0 866.0 Q602.0 869.0 600.0 871.2 L597.0 874.8 Q595.0 877.0 592.4 878.5 L542.0 907.3 Q539.0 909.0 535.6 908.4 L530.1 907.5 Q527.0 907.0 524.8 904.8 L521.2 901.2 Q519.0 899.0 517.3 896.3 L513.2 889.6 Q511.0 886.0 509.1 882.2 L466.0 793.0 Q464.0 789.0 462.2 784.9 L448.8 753.1 Q447.0 749.0 444.9 745.0 L365.1 593.0 Q363.0 589.0 361.3 584.8 L310.7 461.2 Q309.0 457.0 307.4 452.8 L246.2 288.1 Q245.0 285.0 245.0 281.6 L245.0 276.4 Q245.0 273.0 247.2 270.5 L250.8 266.5 Q253.0 264.0 256.1 262.7 Z`;
+
+  // MÁSCARA PLANA (SIN DIFUMINADOS): Recorte vectorial nítido directo de la silueta
+  const recorte = crear('clipPath', { id: 'recorte-silueta', clipPathUnits: 'userSpaceOnUse' });
+  recorte.appendChild(crear('path', { d: silueta, 'fill-rule': 'evenodd' }));
+  defs.appendChild(recorte);
+
+  const capa = crear('g', {
+    class: 'resaltado-mapa',
+    'clip-path': 'url(#recorte-silueta)',
+    'pointer-events': 'none'
+  });
+
+  // Puntos de referencia de cada lugar SOBRE el trazado existente.
+  // Se usan únicamente para dividir espacialmente la figura. Los colores
+  // se toman de "espacios", cuyas cantidades son las de la encuesta.
+  const puntos = {
+    echaurren: [[122,188],[180,195],[220,270],[130,290]],
+    serrano: [[253,301],[294,432],[346,580],[407,733],[452,865]],
+    cochrane: [[356,214],[402,371],[450,514],[523,687],[606,858]],
+    blanco: [[485,139],[526,295],[575,455],[645,631],[710,797]],
+    errazuriz: [[635,48],[679,245],[725,434],[785,624],[844,757]],
+    muelle: [[960,72],[1055,140],[1085,313],[1168,475],[1240,610],
+            [1260,695],[997,575],[936,370],[1180,220]],
+    monumento: [[814,826],[848,854],[902,917],[965,852],[1025,891]],
+    sotomayor: [[535,940],[615,1010],[700,1075],[619,1150],[750,1040],[680,926]]
+  };
+
+  const sitios = Object.entries(puntos).flatMap(([id, lista]) =>
+    lista.map(([x,y]) => ({id,x,y}))
+  );
+  const porId = Object.fromEntries(espacios.map(e => [e.id,e]));
+  const AZUL = [24, 182, 230]; // Celeste (#18b6e6)
+  const NARANJA = [240, 84, 36]; // Naranja (#f05424)
+
+  function colorExacto(e) {
+    // Si contención = 0, el resultado es SIEMPRE celeste puro.
+    // Si apertura = 0, el resultado es SIEMPRE naranja puro.
+    const parteNaranja = e.contencion / (e.apertura + e.contencion);
+    const rgb = AZUL.map((v,i) => Math.round(v * (1 - parteNaranja) + NARANJA[i] * parteNaranja));
+    return `rgb(${rgb.join(',')})`;
+  }
+
+  // Capa plana de colores sin feGaussianBlur ni difuminados
+  const campoColores = crear('g', {
+    class: 'campo-plano-colores',
+    'pointer-events': 'none',
+    opacity: '0.94'
+  });
+  capa.appendChild(campoColores);
+
+  // Polígonos SVG orientados por proximidad a cada lugar.
+  // Sus valores proceden de las 15 respuestas de cada sector;
+  // el suavizado afecta solamente a su transición VISUAL.
+  function poligonoDeSitio(sitio) {
+    let poligono = [[-70,-70],[1389,-70],[1389,1263],[-70,1263]];
+    for (const otro of sitios) {
+      if (otro === sitio) continue;
+      const nx = otro.x - sitio.x;
+      const ny = otro.y - sitio.y;
+      const corte = (otro.x * otro.x + otro.y * otro.y - sitio.x * sitio.x - sitio.y * sitio.y) / 2;
+      const nuevo = [];
+      for (let i = 0; i < poligono.length; i++) {
+        const a = poligono[i];
+        const b = poligono[(i + 1) % poligono.length];
+        const da = a[0] * nx + a[1] * ny - corte;
+        const db = b[0] * nx + b[1] * ny - corte;
+        const dentroA = da <= 1e-8;
+        const dentroB = db <= 1e-8;
+        if (dentroA) nuevo.push(a);
+        if (dentroA !== dentroB) {
+          const t = da / (da - db);
+          nuevo.push([a[0] + t * (b[0]-a[0]), a[1] + t * (b[1]-a[1])]);
+        }
+      }
+      poligono = nuevo;
+      if (!poligono.length) break;
+    }
+    return poligono.length > 2
+      ? 'M' + poligono.map(p => p.map(n => n.toFixed(2)).join(' ')).join(' L') + ' Z'
+      : '';
+  }
+
+  for (const sitio of sitios) {
+    const d = poligonoDeSitio(sitio);
+    if (!d) continue;
+    const e = porId[sitio.id];
+    const color = colorExacto(e);
+    campoColores.appendChild(crear('path', {
+      d, fill: color, stroke: color, 'stroke-width': 1.25,
+      class: 'resaltado-zona', 'data-resaltado': sitio.id
+    }));
+  }
+
+  grupo.appendChild(capa);
+  zonasClicables.forEach(z => grupo.appendChild(z));
+})();
+</script>
+<script>
+/* ===============================================================
+   LEVANTAMIENTOS 3D AXONOMÉTRICOS — PERCEPCIÓN ESPACIAL EN BARRIO PUERTO
+   Los edificios tridimensionales se levantan ÚNICAMENTE al pasar el
+   mouse por la calle o espacio correspondiente.
+   - Colores: cada sector utiliza su color determinado (paleta calculada
+     de apertura/contención).
+   - Cantidad y altura:
+     * A mayor contención: más edificios y más altos (altura máxima ~115px,
+       densidad compacta a ambos lados de la calle).
+     * A mayor apertura: menos edificios y de menor tamaño/huella
+       (en apertura plena = 0 edificios / 0 levantamiento).
+   =============================================================== */
+(() => {
+  'use strict';
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.getElementById('mapa');
+  const etiquetas = document.getElementById('etiquetas');
+  if (!svg || !etiquetas || typeof espacios === 'undefined') return;
+
+  const crear = (tipo, attrs = {}) => {
+    const e = document.createElementNS(NS, tipo);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, String(v));
+    return e;
+  };
+  const limitar = (n, a, b) => Math.max(a, Math.min(b, n));
+  const punto = (x, y) => ({ x, y });
+  const suma = (a, b) => punto(a.x + b.x, a.y + b.y);
+  const por = (v, n) => punto(v.x * n, v.y * n);
+  const coord = v => `${v.x.toFixed(1)},${v.y.toFixed(1)}`;
+  const puntos = (...vs) => vs.map(coord).join(' ');
+  const aPuntos = lista => lista.map(([x, y]) => punto(x, y));
+
+  const AZUL = [24, 182, 230]; // Apertura (Celeste #18b6e6)
+  const NARANJA = [240, 84, 36]; // Contención (Naranja #f05424)
+
+  function colorRGBDe(e) {
+    const t = e.contencion / (e.apertura + e.contencion);
+    return AZUL.map((c, i) => Math.round(c * (1 - t) + NARANJA[i] * t));
+  }
+
+  function paletaSector(rgb) {
+    const [r, g, b] = rgb;
+    // Techo: Cara superior iluminada, tono vivo y luminoso del color del sector
+    const rT = Math.round(r + (255 - r) * 0.38);
+    const gT = Math.round(g + (255 - g) * 0.38);
+    const bT = Math.round(b + (255 - b) * 0.38);
+    const techo = `rgb(${rT}, ${gT}, ${bT})`;
+
+    // Frente: Cara frontal soleada, translúcida
+    const rF = Math.round(r + (255 - r) * 0.18);
+    const gF = Math.round(g + (255 - g) * 0.18);
+    const bF = Math.round(b + (255 - b) * 0.18);
+    const frente = `rgba(${rF}, ${gF}, ${bF}, 0.82)`;
+    const frenteStroke = `rgba(${Math.round(r * 0.68)}, ${Math.round(g * 0.68)}, ${Math.round(b * 0.68)}, 0.88)`;
+
+    // Lado: Cara lateral en sombra
+    const rL = Math.round(r * 0.72);
+    const gL = Math.round(g * 0.72);
+    const bL = Math.round(b * 0.72);
+    const lado = `rgba(${rL}, ${gL}, ${bL}, 0.88)`;
+    const ladoStroke = `rgba(${Math.round(r * 0.52)}, ${Math.round(g * 0.52)}, ${Math.round(b * 0.52)}, 0.94)`;
+
+    // Trasera: Cara posterior semitransparente
+    const rB = Math.round(r * 0.82);
+    const gB = Math.round(g * 0.82);
+    const bB = Math.round(b * 0.82);
+    const trasera = `rgba(${rB}, ${gB}, ${bB}, 0.42)`;
+    const traseraStroke = `rgba(${Math.round(r * 0.65)}, ${Math.round(g * 0.65)}, ${Math.round(b * 0.65)}, 0.55)`;
+
+    // Borde del techo
+    const bordeTecho = `rgb(${Math.round(r * 0.65)}, ${Math.round(g * 0.65)}, ${Math.round(b * 0.65)})`;
+
+    // Cinta continua superior: cuerpo en color pleno del sector y filo luminoso superior
+    const cinta = `rgb(${r}, ${g}, ${b})`;
+    const cintaFilo = `rgb(${rT}, ${gT}, ${bT})`;
+
+    return { techo, frente, frenteStroke, lado, ladoStroke, trasera, traseraStroke, bordeTecho, cinta, cintaFilo };
+  }
+
+  function prepararGuia(guia) {
+    const pts = aPuntos(guia.puntos);
+    const segmentos = [];
+    let largoTotal = 0;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      const largo = Math.hypot(b.x - a.x, b.y - a.y);
+      if (!largo) continue;
+      segmentos.push({ a, b, largo, inicio: largoTotal, fin: largoTotal + largo });
+      largoTotal += largo;
+    }
+    return { ...guia, pts, segmentos, largoTotal };
+  }
+  function puntoEnGuia(guia, d) {
+    const objetivo = limitar(d, 0, guia.largoTotal);
+    const seg = guia.segmentos.find(s => objetivo <= s.fin) || guia.segmentos[guia.segmentos.length - 1];
+    const t = seg.largo ? (objetivo - seg.inicio) / seg.largo : 0;
+    return punto(seg.a.x + (seg.b.x - seg.a.x) * t, seg.a.y + (seg.b.y - seg.a.y) * t);
+  }
+
+  const sectores = espacios.map(e => {
+    const camino = document.querySelector(`[data-lugar="${e.id}"] .zona-interaccion`);
+    if (!camino || !camino.getTotalLength) return null;
+    const largo = camino.getTotalLength();
+    const caja = camino.getBBox();
+    const muestras = [];
+    for (let j = 0; j <= 170; j++) {
+      const d = largo * j / 170;
+      const p = camino.getPointAtLength(d);
+      muestras.push({ x: p.x, y: p.y, distancia: d });
+    }
+    const ratioContencion = e.contencion / 15;
+    // Altura determinada directamente por la cantidad de respuestas de contención:
+    // Muelle Prat (0 contención) tiene altura mínima de 14px; Serrano/Blanco (15 contención) 115px
+    const altura = Math.round(14 + 101 * ratioContencion);
+    return {
+      e, camino, largo, muestras,
+      centro: punto(caja.x + caja.width / 2, caja.y + caja.height / 2),
+      guias: (e.guias || []).map(prepararGuia),
+      altura,
+      ratioContencion
+    };
+  }).filter(Boolean);
+
+  const grupo = crear('g', {
+    id: 'edificios-al-pasar',
+    class: 'levantamientos-axonometricos',
+    'pointer-events': 'none',
+    'aria-hidden': 'true'
+  });
+  svg.insertBefore(grupo, etiquetas);
+
+  const estilo = document.createElement('style');
+  estilo.textContent = `
+    #edificios-al-pasar { pointer-events: none !important; isolation: isolate; }
+    .sector-volumen { pointer-events: none !important; }
+    .sector-volumen polygon,
+    .sector-volumen polyline {
+      stroke-linejoin: round;
+      pointer-events: none !important;
+    }
+    /* Estado reposo / oculto de los edificios */
+    .sector-volumen .edificio-prisma {
+      opacity: 0;
+      transform-box: fill-box;
+      transform-origin: 50% 100%;
+      transform: translateY(12px) scaleY(0.25);
+      /* Al salir, se desvanecen ágilmente sin retardo */
+      transition: opacity 160ms ease 0ms, transform 160ms ease 0ms;
+      pointer-events: none !important;
+    }
+    /* Al pasar el mouse por la calle, se levantan de a pocos con delays escalonados */
+    .sector-volumen.activo .edificio-prisma {
+      opacity: 1;
+      transform: translateY(0) scaleY(1);
+      transition: opacity 280ms cubic-bezier(0.16, 1, 0.3, 1),
+                  transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+  `;
+  document.head.appendChild(estilo);
+
+  const obtener = (t, d) => {
+    const p = t.camino.getPointAtLength(limitar(d, 0, t.largo));
+    return punto(p.x, p.y);
+  };
+
+  function distanciaAlCamino(t, x, y) {
+    let dist2 = Infinity;
+    for (const m of t.muestras) {
+      const d2 = (m.x - x) ** 2 + (m.y - y) ** 2;
+      if (d2 < dist2) dist2 = d2;
+    }
+    return Math.sqrt(dist2);
+  }
+
+  function distribuir(t) {
+    const variaciones = [0.90, 1.05, 0.85, 1.10, 0.95, 1.0, 0.88, 1.08, 0.92, 1.12];
+    const modelos = [];
+    const ratio = t.ratioContencion;
+    if (t.altura <= 0) return modelos;
+
+    if (t.guias && t.guias.length) {
+      for (const guia of t.guias) {
+        const margen = Math.min(24, guia.largoTotal * 0.08);
+        const tramo = Math.max(1, guia.largoTotal - 2 * margen);
+        // Cantidad reducida y bien separada:
+        // Muelle Prat (ratio 0): 2 edificios sutiles bien separados
+        // Sotomayor (ratio 0.2): 3 edificios
+        // Echaurren (ratio 0.33): 4 edificios
+        // Monumento (ratio 0.4): 4 edificios
+        const numero = Math.max(2, Math.round(2 + 5 * ratio));
+        for (let i = 0; i < numero; i++) {
+          const dist = margen + (i + 0.5) * tramo / numero;
+          const p = puntoEnGuia(guia, dist);
+          const anterior = puntoEnGuia(guia, dist - 8);
+          const posterior = puntoEnGuia(guia, dist + 8);
+          const ang = Math.atan2(posterior.y - anterior.y, posterior.x - anterior.x);
+          const tang = punto(Math.cos(ang), Math.sin(ang));
+          const normal = punto(-tang.y, tang.x);
+          // Tamaño de edificios: proporcionado para dejar aire libre entre ellos
+          const largoEd = Math.round((10 + 9 * ratio) * (0.9 + (i % 3) * 0.08));
+          const fondo = Math.round(7 + 7 * ratio + (i % 2) * 2);
+          const signo = guia.lado || 1;
+          const centro = suma(p, por(normal, signo * ((guia.separacion || 10) + fondo / 2)));
+          const eje = por(tang, largoEd / 2);
+          const lateral = por(normal, fondo / 2);
+          const a = suma(suma(centro, por(eje, -1)), por(lateral, -1));
+          const b = suma(suma(centro, eje), por(lateral, -1));
+          const c = suma(suma(centro, eje), lateral);
+          const d = suma(suma(centro, por(eje, -1)), lateral);
+          modelos.push({
+            a, b, c, d, centro, lado: signo,
+            distancia: dist,
+            indice: i,
+            altura: t.altura * variaciones[i % variaciones.length] * (ratio === 0 ? 0.72 : 0.85)
+          });
+        }
+      }
+      return modelos;
+    }
+
+    const margen = Math.min(30, t.largo * 0.06);
+    const tramo = Math.max(1, t.largo - 2 * margen);
+    // Cantidad reducida en calles con separación generosa entre edificios ("separa más, pon menos"):
+    // Serrano / Blanco (ratio = 1.0): ~11-12 edificios por lado (22-24 total en vez de 64, con holgura)
+    // Cochrane (ratio = 0.867): ~9-10 edificios por lado
+    // Errázuriz (ratio = 0.60): ~7 edificios por lado
+    const numero = Math.max(4, Math.round((4 + 8 * ratio) * Math.min(1.05, tramo / 520)));
+    for (let i = 0; i < numero; i++) {
+      const dist = margen + (i + 0.5) * tramo / numero;
+      const p = obtener(t, dist);
+      const anterior = obtener(t, dist - 8);
+      const posterior = obtener(t, dist + 8);
+      const ang = Math.atan2(posterior.y - anterior.y, posterior.x - anterior.x);
+      const tang = punto(Math.cos(ang), Math.sin(ang));
+      const normal = punto(-tang.y, tang.x);
+      // Largo y fondo del edificio (deja amplio espacio libre entre edificios consecutivos)
+      const largoEd = Math.round((11 + 7 * ratio) * (0.92 + (i % 3) * 0.08));
+      const fondo = Math.round(8 + 6 * ratio + (i % 2) * 2);
+      for (const lado of [-1, 1]) {
+        const mediaCalle = t.e.ancho / 2;
+        const centro = suma(p, por(normal, lado * (mediaCalle + 6 + fondo / 2)));
+        const eje = por(tang, largoEd / 2);
+        const lateral = por(normal, fondo / 2);
+        const a = suma(suma(centro, por(eje, -1)), por(lateral, -1));
+        const b = suma(suma(centro, eje), por(lateral, -1));
+        const c = suma(suma(centro, eje), lateral);
+        const d = suma(suma(centro, por(eje, -1)), lateral);
+        modelos.push({
+          a, b, c, d, centro, lado,
+          distancia: dist,
+          indice: i,
+          altura: t.altura * variaciones[i % variaciones.length]
+        });
+      }
+    }
+    return modelos;
+  }
+
+  const gruposSector = new Map();
+
+  sectores.forEach(t => {
+    const modelos = distribuir(t);
+    if (!modelos.length) return;
+
+    // Paleta de colores determinada específicamente para este sector
+    const rgbSector = colorRGBDe(t.e);
+    const pal = paletaSector(rgbSector);
+
+    const gSector = crear('g', {
+      class: 'sector-volumen',
+      'data-sector': t.e.id
+    });
+
+    const listaEdificios = [];
+
+    modelos.forEach(m => {
+      const gEd = crear('g', { class: 'edificio-prisma' });
+      gEd._centro = m.centro;
+      gEd._distancia = m.distancia;
+      gEd._indice = m.indice;
+      listaEdificios.push(gEd);
+
+      const h = m.altura;
+      const arriba = punto(h * 0.44, -h * 0.88);
+      const a = suma(m.a, arriba), b = suma(m.b, arriba);
+      const c = suma(m.c, arriba), d = suma(m.d, arriba);
+      const sombraShift = punto(3 + h * 0.1, 3 + h * 0.06);
+
+      const sombra = crear('polygon', {
+        points: puntos(suma(m.a, sombraShift), suma(m.b, sombraShift), suma(m.c, sombraShift), suma(m.d, sombraShift)),
+        fill: 'rgba(0,0,0,0.10)'
+      });
+      const trasera = crear('polygon', {
+        points: puntos(m.c, m.d, d, c),
+        fill: pal.trasera,
+        stroke: pal.traseraStroke,
+        'stroke-width': '0.5'
+      });
+      const frente = crear('polygon', {
+        points: puntos(m.a, m.b, b, a),
+        fill: pal.frente,
+        stroke: pal.frenteStroke,
+        'stroke-width': '0.65'
+      });
+      const lado = crear('polygon', {
+        points: puntos(m.b, m.c, c, b),
+        fill: pal.lado,
+        stroke: pal.ladoStroke,
+        'stroke-width': '0.65'
+      });
+      const techo = crear('polygon', {
+        points: puntos(a, b, c, d),
+        fill: pal.techo,
+        stroke: pal.bordeTecho,
+        'stroke-width': '0.85',
+        opacity: '0.98'
+      });
+      const brillo = crear('polyline', {
+        points: puntos(a, b, c),
+        fill: 'none',
+        stroke: 'rgba(255,255,255,0.85)',
+        'stroke-width': '1.1',
+        'stroke-linecap': 'round'
+      });
+
+      gEd.append(sombra, trasera, frente, lado, techo, brillo);
+      gSector.appendChild(gEd);
+    });
+
+    gSector._edificios = listaEdificios;
+    gSector._centro = t.centro;
+
+    grupo.appendChild(gSector);
+    gruposSector.set(t.e.id, gSector);
+  });
+
+  let sectorActivo = null;
+
+  function coordenadasSVG(ev) {
+    if (!ev) return null;
+    if (ev.x != null && ev.y != null && ev.clientX == null) return ev;
+    const p = svg.createSVGPoint();
+    p.x = ev.clientX; p.y = ev.clientY;
+    return p.matrixTransform(svg.getScreenCTM().inverse());
+  }
+
+  function actualizarEnfoque(id, evOPunto) {
+    const pRaton = evOPunto ? coordenadasSVG(evOPunto) : null;
+    const cambioSector = id !== sectorActivo;
+
+    if (cambioSector) {
+      sectorActivo = id;
+      gruposSector.forEach((g, secId) => {
+        if (id && secId === id) {
+          if (g._edificios) {
+            const ref = pRaton || g._centro;
+            // Escalonamiento de a pocos: ola progresiva que nace donde el mouse entra a la calle
+            g._edificios.forEach(ed => {
+              const c = ed._centro;
+              const dist = ref ? Math.hypot(c.x - ref.x, c.y - ref.y) : (ed._indice || 0) * 35;
+              const delay = Math.min(650, Math.round(dist * 0.85));
+              ed.style.transitionDelay = `${delay}ms`;
+            });
+          }
+          g.classList.add('activo');
+        } else {
+          // Al desactivar, se quita el delay para salida ágil
+          if (g._edificios) {
+            g._edificios.forEach(ed => { ed.style.transitionDelay = '0ms'; });
+          }
+          g.classList.remove('activo');
+        }
+      });
+    } else if (id && pRaton) {
+      // Si el mouse continúa desplazándose por la calle, los edificios que quedan bajo el cursor
+      // se levantan de inmediato si aún estaban esperando en la ola progresiva
+      const g = gruposSector.get(id);
+      if (g && g._edificios) {
+        g._edificios.forEach(ed => {
+          if (Math.hypot(ed._centro.x - pRaton.x, ed._centro.y - pRaton.y) < 70) {
+            ed.style.transitionDelay = '0ms';
+          }
+        });
+      }
+    }
+  }
+
+  window.enfocarSector = actualizarEnfoque;
+
+  let arrastrando = false;
+  function pasar(ev) {
+    if (ev.pointerType === 'touch' || arrastrando || ev.buttons !== 0) return;
+    const p = coordenadasSVG(ev);
+    const zona = ev.target.closest?.('.zona-interactiva');
+    const eZona = zona && espacios.find(e => e.id === zona.getAttribute('data-lugar'));
+    let mejor = null, distancia = Infinity;
+    if (eZona) {
+      mejor = eZona.id;
+    } else {
+      for (const t of sectores) {
+        if (t.e.tipo !== 'calle') continue;
+        const d = distanciaAlCamino(t, p.x, p.y);
+        const tolerancia = Math.max(38, t.e.ancho / 2 + 18);
+        if (d <= tolerancia && d < distancia) { mejor = t.e.id; distancia = d; }
+      }
+    }
+    if (!detalleFijo) {
+      actualizarEnfoque(mejor, ev);
+      document.querySelectorAll('.resaltado-zona').forEach(el => {
+        el.classList.toggle('activo', Boolean(mejor && el.getAttribute('data-resaltado') === mejor));
+      });
+      if (mejor) {
+        const e = espacios.find(x => x.id === mejor);
+        if (e) mostrarDetalle(e, ev);
+      } else {
+        ocultarDetalle();
+      }
+    }
+  }
+
+  svg.addEventListener('pointermove', pasar);
+  svg.addEventListener('pointerleave', () => {
+    if (!detalleFijo) {
+      actualizarEnfoque(null, null);
+      ocultarDetalle();
+      document.querySelectorAll('.resaltado-zona').forEach(el => el.classList.remove('activo'));
+    }
+  });
+  svg.addEventListener('pointerdown', () => { arrastrando = true; });
+  for (const evento of ['pointerup', 'pointercancel', 'lostpointercapture'])
+    svg.addEventListener(evento, () => { arrastrando = false; });
+})();
+</script>
+</body>
+</html>

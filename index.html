@@ -1,1315 +1,387 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#ffffff" />
-  <meta name="description" content="Mapa interactivo de apertura y contención espacial en Barrio Puerto, Valparaíso, construido a partir de 15 encuestas." />
-  <title>Apertura / Contención — Barrio Puerto</title>
-  <!-- Estilos originales integrados para que no desaparezca la interfaz -->
-  <style>
-:root {
-  --papel: #ffffff;
-  --tinta: #000000;
-  --gris: #6e7072;
-  --apertura: #18b6e6;
-  --contencion: #f05424;
-  --fuente-texto: Arial, sans-serif;
-  --fuente-titulos: Helvetica, "Helvetica Neue", Arial, sans-serif;
-}
-* { box-sizing: border-box; }
-html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
-body { background: var(--papel); color: var(--tinta); font-family: var(--fuente-texto); -webkit-font-smoothing: antialiased; }
-button { font: inherit; font-family: inherit; }
-.visor { position: relative; overflow: hidden; width: 100%; height: 100svh; min-height: 320px; background: var(--papel); isolation: isolate; }
-.mapa { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
-.mapa.arrastrando { cursor: grabbing; }
-.zona { mix-blend-mode: multiply; }
-.zona-halo, .zona-tinta { pointer-events: none; }
-.zona-tinta { transition: opacity 160ms ease; }
-.zona-interaccion { pointer-events: visiblePainted; cursor: pointer; outline: none; }
-.campo-plano-colores { pointer-events: auto; }
-.resaltado-zona { cursor: pointer; pointer-events: visiblePainted; transition: opacity 160ms ease, filter 160ms ease; }
-.resaltado-zona:hover, .resaltado-zona.activo { filter: brightness(1.08); }
-.zona:has(.zona-interaccion:hover) .zona-tinta,
-.zona:has(.zona-interaccion:focus-visible) .zona-tinta { opacity: .96; }
-.etiqueta { font-family: var(--fuente-titulos); font-size: 14px; letter-spacing: 1.7px; font-weight: 750; fill: #17191a; stroke: none; stroke-width: 0; paint-order: normal; stroke-linejoin: round; pointer-events: none; }
-.leyenda { position: absolute; z-index: 8; right: 25px; bottom: 25px; width: min(300px, calc(100vw - 44px)); background: #fff; border: 1px solid #d9d9d9; padding: 22px 23px 18px; box-shadow: 0 3px 22px #0000000c; font-family: var(--fuente-texto); }
-.leyenda-titulo { font-family: var(--fuente-titulos); display: flex; justify-content: space-between; align-items: center; font-size: 11px; letter-spacing: .2em; font-weight: 800; }
-.leyenda-titulo span { font-family: var(--fuente-titulos); font-weight: 500; letter-spacing: .07em; color: #8b8b8b; }
-.leyenda-linea { background: #292929; height: 1px; margin: 13px 0 18px; }
-.leyenda-linea.tenue { background: #e4e4e4; margin: 18px 0 13px; }
-.leyenda-elemento { font-family: var(--fuente-texto); display: flex; align-items: center; gap: 11px; font-size: 12px; letter-spacing: .01em; margin: 12px 0; }
-.muestra { display: block; width: 23px; height: 16px; flex-shrink: 0; }
-.muestra.apertura { background: var(--apertura); }
-.muestra.contencion { background: var(--contencion); }
-.muestra.mezcla { background: linear-gradient(90deg, var(--apertura), var(--contencion)); }
-.leyenda-escala { font-family: var(--fuente-texto); display: flex; justify-content: space-between; gap: 10px; font-size: 8px; letter-spacing: .1em; color: #656565; }
-.escala-color { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0 13px; }
-.escala-color span { height: 9px; background: linear-gradient(90deg, #e4f7fc, var(--apertura)); }
-.escala-color span + span { background: linear-gradient(90deg, #ffefe8, var(--contencion)); }
-.leyenda-nota { font-family: var(--fuente-texto); font-size: 10.5px; line-height: 1.55; margin: 0; color: #5d6063; }
-.leyenda-pie { font-family: var(--fuente-titulos); display: flex; align-items: center; gap: 9px; margin: 19px 0 0; padding-top: 11px; border-top: 1px solid #ececec; font-size: 9px; font-weight: 700; color: #7a7a7a; letter-spacing: .15em; }
-.leyenda-pie span { font-size: 15px; font-weight: 400; line-height: .6; }
-.detalle { position: absolute; z-index: 10; background: #fff; width: 216px; border: 1px solid #242424; padding: 13px; box-shadow: 0 7px 28px #00000021; pointer-events: none; font-family: var(--fuente-texto); }
-.detalle[hidden] { display: none; }
-.detalle-encabezado { font-family: var(--fuente-titulos); display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 15px; font-size: 12px; font-weight: 700; line-height: 1.3; }
-.detalle-cerrar { flex-shrink: 0; color: #9a9a9a; }
-.detalle-barra { display: flex; width: 100%; height: 9px; background: #eee; overflow: hidden; }
-#barra-apertura { background: var(--apertura); }
-#barra-contencion { background: var(--contencion); }
-.detalle-cifras { font-family: var(--fuente-texto); display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 9.5px; color: #4f5154; }
-.detalle-cifras b { font-family: var(--fuente-titulos); color: #171717; font-size: 12px; }
-.detalle-explicacion { font-family: var(--fuente-texto); margin: 11px 0 0; padding-top: 9px; border-top: 1px solid #eaeaea; font-size: 10.5px; line-height: 1.55; color: #4f5154; }
-.resaltado-zona { pointer-events: none; }
-.resaltado-zona.activo { filter: brightness(1.06); }
-.instruccion { font-family: var(--fuente-titulos); position: absolute; z-index: 3; bottom: 26px; left: 24px; font-size: 9px; font-weight: 700; color: #7f8284; letter-spacing: .19em; user-select: none; pointer-events: none; }
-.solo-lectores { font-family: var(--fuente-texto); position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-@media (max-width: 650px) {
-  .leyenda { right: 12px; bottom: 12px; width: min(257px, calc(100vw - 24px)); padding: 15px 16px 13px; }
-  .leyenda-elemento { margin: 9px 0; }
-  .leyenda-linea { margin: 10px 0 14px; }
-  .leyenda-linea.tenue { margin: 12px 0 10px; }
-  .leyenda-nota { font-size: 10px; }
-  .leyenda-pie { margin-top: 10px; }
-  .instruccion { left: 13px; bottom: 13px; font-size: 7px; max-width: 68px; line-height: 1.6; }
-}
-
-/* PLANO LLENO-VACÍO (MANZANAS SÓLIDAS GEOMÉTRICAS) DE BARRIO PUERTO */
-#cartografia-base, #cartografia { pointer-events: none; }
-.manzana-solida {
-  fill: #181818;
-  stroke: #ffffff;
-  stroke-width: 3px;
-  stroke-linejoin: miter;
-  paint-order: stroke fill;
-  fill-rule: evenodd;
-}
-.parterre-monumento {
-  fill: #181818;
-  stroke: #ffffff;
-  stroke-width: 1.6px;
-  stroke-linejoin: miter;
-  paint-order: stroke fill;
-}
-.trazo-borde {
-  fill: none;
-  stroke: #181818;
-  stroke-width: 2.4;
-  stroke-linejoin: miter;
-  stroke-linecap: square;
-}
-.contorno-monumento {
-  fill: none;
-  stroke: #181818;
-  stroke-width: 2;
-  stroke-linejoin: miter;
-}
-.campo-fluido { pointer-events: none; }
-.zona-interactiva { pointer-events: none; }
-.zona-interaccion { pointer-events: visiblePainted; cursor: crosshair; }
-.etiqueta { font-family: var(--fuente-titulos); font-size: 12px; letter-spacing: 1.45px; font-weight: 700; stroke: none; stroke-width: 0; paint-order: normal; }
-.muestra.mezcla { background: linear-gradient(90deg, var(--apertura), var(--contencion)); }
-.leyenda { background: #fff; box-shadow: 0 7px 25px rgba(0,0,0,.07); }
-body, html, .visor, .mapa { background: #fff; }
-.visor { width: 100vw; height: 100dvh; min-height: 0; }
-.mapa { width: 100vw; height: 100%; }
-@media (max-width: 650px) {
-  .etiqueta { font-size: 14px; }
-  .leyenda { background: #fff; }
-}
-#capas-color { isolation: isolate; opacity: 0.88; }
-.resaltado-mapa, .resaltado-enfoque { pointer-events: none; }
-.resaltado-enfoque { opacity: 0; transition: opacity 160ms ease; }
-.resaltado-enfoque.activo { opacity: .22; }
-
-/* Etiquetas sin contorno blanco y sin halo */
-#etiquetas .etiqueta { font-family: var(--fuente-titulos) !important; stroke: none !important; stroke-width: 0 !important; paint-order: normal; }
-</style>
+  <meta name="description" content="Visualización interactiva de percepción espacial en Barrio Puerto, Valparaíso." />
+  <title>Pasos por la Amplitud — Barrio Puerto, Valparaíso</title>
+  
+  <!-- Tipografía global: Montserrat -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main id="visor" class="visor" aria-label="Visualización de percepción de amplitud espacial en Barrio Puerto, Valparaíso">
-    <svg id="mapa" class="mapa" viewBox="0 0 1319 1193" preserveAspectRatio="xMidYMid slice"
-      role="img" aria-label="Mapa de manzanas sólidas en blanco y negro de Barrio Puerto, con superficie plana de colores celeste y naranja que representa las respuestas de ocho lugares">
-      <defs>
-        <!-- Ramas orgánicas de anchura variable generadas directamente en SVG. -->
-      </defs>
-      <!-- Mapa vectorial dibujado íntegramente con código SVG. Sin fotografías ni imágenes -->
-      <rect x="-400" y="-300" width="2200" height="1900" fill="#ffffff" />
-      <g id="cartografia-base" aria-hidden="true"></g>
-      <g id="capas-color" aria-hidden="true"></g>
-      <g id="cartografia" aria-hidden="true"></g>
-      <g id="etiquetas" aria-hidden="true"></g>
-    </svg>
 
-    <aside class="leyenda" aria-label="Simbología de colores">
-      <div class="leyenda-titulo">SIMBOLOGÍA <span>01 — 08</span></div>
-      <div class="leyenda-linea"></div>
-      <div class="leyenda-elemento"><i class="muestra apertura"></i><span>Apertura</span></div>
-      <div class="leyenda-elemento"><i class="muestra contencion"></i><span>Contención</span></div>
-      <div class="leyenda-elemento"><i class="muestra mezcla"></i><span>Percepción compartida</span></div>
-      <div class="leyenda-linea tenue"></div>
-      <p class="leyenda-nota">Pasa el cursor sobre cada calle o espacio para levantar sus edificios tridimensionales. Los volúmenes emergen progresivamente adoptando el color de su sector; su altura y cantidad reflejan las respuestas: a mayor contención, mayor altura y densidad de edificios; a mayor apertura, menor tamaño y presencia.</p>
-      <p class="leyenda-pie">15 ENCUESTAS <span>·</span> 8 ESPACIOS</p>
+  <!-- ======================================================================
+       PANTALLA DE INTRODUCCIÓN (Páginas 2, 3 y 4 del PDF)
+       ====================================================================== -->
+  <div id="pantalla-intro" class="pantalla-intro" aria-label="Introducción: Pasos por la Amplitud">
+    <div class="intro-contenedor">
+      
+      <!-- Huellas vectoriales de zapatos que caminan diagonalmente -->
+      <svg id="svg-huellas" class="svg-huellas" viewBox="0 0 1920 1080" preserveAspectRatio="none" aria-hidden="true"></svg>
+
+      <!-- Vista 1: Página 2 del PDF (Pasos por la Amplitud) -->
+      <div id="vista-p2" class="intro-vista activa">
+        <h1 class="intro-titulo-p2">Pasos por la Amplitud</h1>
+      </div>
+
+      <!-- Vista 2: Páginas 3 y 4 del PDF (Pregunta y Subtítulo) -->
+      <div id="vista-p3-p4" class="intro-vista">
+        <div class="intro-caja-p3">
+          <h2 id="intro-pregunta" class="intro-pregunta">¿Cómo es el sentir de<br>las personas en Barrio<br>Puerto, Valparaíso?</h2>
+          <p id="intro-subtitulo" class="intro-subtitulo">
+            Estas son las respuestas de<br>
+            las personas en <span class="t-naranja">Barrio</span><br>
+            <span class="t-naranja">Puerto</span>, <span class="t-celeste">Valparaíso</span>
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       PANTALLA PRINCIPAL: MAPA INTERACTIVO (Página 1 del PDF)
+       100% Vectorial en código SVG (Exacto según el PDF de Illustrator)
+       ====================================================================== -->
+  <main id="visor-mapa" class="visor-mapa">
+
+    <!-- Encabezado superior derecho del mapa (Exacto según PDF Página 1) -->
+    <header id="encabezado-fijo" class="encabezado-mapa capa-desenfocable" aria-hidden="true">
+      <p class="encabezado-linea-1">Estas son las respuestas de</p>
+      <p class="encabezado-linea-2">las personas en <span class="t-naranja">Barrio</span></p>
+      <p class="encabezado-linea-3"><span class="t-naranja">Puerto</span>, <span class="t-celeste">Valparaíso</span></p>
+    </header>
+
+    <!-- Leyenda inferior izquierda del mapa (Exacto según PDF Página 1) -->
+    <aside id="leyenda-fija" class="leyenda-mapa capa-desenfocable" aria-label="Simbología del mapa">
+      <div class="leyenda-fila">
+        <span class="muestra-color contencion"></span>
+        <span>Contención</span>
+      </div>
+      <div class="leyenda-fila">
+        <span class="muestra-color apertura"></span>
+        <span>Apertura</span>
+      </div>
+      <div class="leyenda-fila">
+        <span class="muestra-color cruce"></span>
+        <span>Cruce</span>
+      </div>
     </aside>
 
-    <div id="detalle" class="detalle" role="status" aria-live="polite" hidden>
-      <div class="detalle-encabezado"><span id="detalle-lugar"></span><span class="detalle-cerrar" aria-hidden="true">↗</span></div>
-      <div class="detalle-barra" aria-hidden="true"><span id="barra-apertura"></span><span id="barra-contencion"></span></div>
-      <div class="detalle-cifras"><span><b id="valor-apertura">0%</b> apertura</span><span><b id="valor-contencion">0%</b> contención</span></div>
-      <p class="detalle-explicacion" id="detalle-explicacion"></p>
+
+
+    <!-- SVG interactivo 100% Vectorial en Canvas 1920x1080 (Razor-Sharp) -->
+    <svg id="mapa-svg" class="mapa-svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Mapa interactivo de Barrio Puerto, Valparaíso">
+                  <defs>
+        <!-- Filtro de sombra suave para elevación de calles en hover -->
+        <filter id="sombra-hover" x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="rgba(0,0,0,0.32)" />
+        </filter>
+        <filter id="sombra-click" x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="16" stdDeviation="12" flood-color="rgba(0,0,0,0.42)" />
+        </filter>
+      </defs>
+
+      <!-- Fondo general blanco -->
+      <rect x="-2000" y="-2000" width="6000" height="6000" fill="#ffffff" />
+
+      <!-- Contenedor dinámico transformable por cámara (Pan y Zoom) -->
+      <g id="mapa-contenido">
+
+        <!-- Capa 1: Superficies y calles de color base (fondo bajo las manzanas) -->
+        <g id="capa-colores-base" class="capa-desenfocable">
+          <!-- Serrano (#F17149, stroke 48) -->
+          <path id="base-serrano" d="M 639.098 341.067 C 720.179 550.755 798.308 704.307 804.318 714.907" fill="none" stroke="#F17149" stroke-width="48" stroke-linecap="butt" stroke-linejoin="round" />
+          <!-- Cochrane (#DA7C5F, stroke 40) -->
+          <path id="base-cochrane" d="M 736.261 301.632 C 746.871 326.434 749.214 333.532 755.316 348.021 L 775.433 407.292 L 811.064 497.369 L 892.909 675.724" fill="none" stroke="#DA7C5F" stroke-width="40" stroke-linecap="butt" stroke-linejoin="round" />
+          <!-- Blanco (#F17149, stroke 40) -->
+          <path id="base-blanco" d="M 813.108 110.487 C 813.108 110.487 819.39 139.425 825.612 170.743 C 829.558 190.607 832.797 210.518 836.579 227.526 C 846.853 273.719 877.237 375.53 877.237 375.53 C 877.237 375.53 912.705 470.974 931.496 518.485 C 950.824 567.354 991.884 662.667 991.884 662.667" fill="none" stroke="#F17149" stroke-width="40" stroke-linecap="butt" stroke-linejoin="round" />
+          <!-- Errázuriz (#AA918A, stroke 83.8) -->
+          <path id="base-errazuriz" d="M 960.63 137.241 L 993.205 307.996 L 1030.34 424.845 C 1030.34 424.845 1060.06 485.968 1073.92 514.469 C 1087.11 541.596 1144.06 645.277 1179.58 689.054 C 1215.98 733.916 1372.63 884.879 1372.63 884.879" fill="none" stroke="#AA918A" stroke-width="83.8" stroke-linecap="butt" stroke-linejoin="round" />
+          <!-- Plaza Sotomayor (#63B1C9) -->
+          <path id="base-sotomayor" d="M 988.606 683.75 L 1042.18 772.344 L 869.119 894.654 L 817.418 755.361 Z" fill="#63B1C9" stroke="none" fill-rule="evenodd" />
+          <!-- Monumento a los Héroes (#86A1A9) -->
+          <path id="base-monumento" d="M 1084.72 632.87 L 1131.24 705.97 L 1047.53 759.237 L 1001.02 686.138 Z" fill="#86A1A9" stroke="none" fill-rule="evenodd" />
+          <!-- Muelle Prat (#3FC2E9) -->
+          <path id="base-muelle" d="M 1265.55 411.004 L 1283.28 434.735 L 1347.73 486.165 L 1382 507.429 L 1220.61 637.88 L 1176.87 575.209 C 1176.87 575.209 1202.08 556.898 1226.98 540.554 C 1243.78 529.523 1235.87 506.426 1232.6 489.63 C 1231.15 482.173 1248.72 475.273 1253.09 464.274 C 1255.15 459.086 1201.13 362.561 1202.29 354.518 C 1203.08 349 1207.8 314.526 1207.8 314.526 C 1207.8 314.526 1225 346.8 1239.79 374.536 C 1250.92 395.432 1265.55 411.004 1265.55 411.004 Z" fill="#3FC2E9" stroke="none" fill-rule="evenodd" />
+          <!-- Plaza Echaurren (#7BA7B4) -->
+          <path id="base-echaurren" d="M 713.594 190.093 L 734.922 269.366 L 566.099 330.538 L 535.016 263.228 Z" fill="#7BA7B4" stroke="none" fill-rule="evenodd" />
+        </g>
+
+        <!-- Capa 2: Manzanas negras sólidas (82 bloques exactos del PDF) -->
+        <g id="capa-manzanas" class="capa-desenfocable">
+        <path class="bloque-manzana" d="M 1064.77 411.62 L 1065.27 410.994 C 1066 410.568 1065.91 410.416 1068.11 409.608 C 1080.48 405.067 1080.47 405.108 1092.82 400.431 C 1103.89 396.237 1104.18 396.416 1105.04 396.95 C 1105.81 397.425 1105.61 397.624 1114.57 415.772 C 1117.3 421.3 1138.02 463.854 1140.47 468.687 C 1141.94 471.591 1161.52 511.953 1161.93 512.389 C 1163.42 513.979 1164.35 512.549 1177.09 505.872 C 1180.36 504.153 1198.71 494.25 1200.59 493.236 C 1200.77 493.14 1201.87 492.545 1202.79 492.023 C 1202.95 491.933 1203.08 491.8 1203.24 491.71 C 1203.49 491.571 1205.79 490.266 1206.46 490.254 C 1206.65 490.25 1207.63 490.231 1208.48 491.576 C 1210.62 494.993 1216.89 506.667 1220.72 513.034 C 1221.35 514.078 1226.2 523.031 1227.6 525.341 C 1228.55 526.917 1228.87 527.052 1227.97 528.665 C 1227.62 529.278 1219.46 534.475 1213.35 538.911 C 1212.26 539.704 1212.17 539.55 1199.45 548.485 C 1198.7 549.015 1198.64 548.909 1189.91 554.954 C 1164.84 572.308 1164.8 572.212 1162.66 573.783 C 1161.57 574.585 1159.38 576.623 1157.76 575.119 C 1156.21 573.691 1143.16 555.866 1137.63 548.958 C 1136.79 547.902 1136.96 547.777 1127.41 535.511 C 1126.7 534.597 1124.9 532.133 1124.02 531.023 C 1117.37 522.65 1117.49 522.534 1112.92 512.857 C 1111.79 510.459 1102.81 492.016 1101.93 490.205 C 1099.86 485.952 1100.01 485.898 1093.42 472.489 C 1088.89 463.248 1073.3 430.498 1070.36 423.795 C 1068.31 419.14 1066.72 417.877 1064.77 411.62 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1032.75 515.322 C 1033.1 515.576 1033.52 515.722 1033.87 515.976 C 1034.65 516.537 1035.49 519.075 1038.48 525.01 C 1042.22 532.437 1042.07 532.494 1045.76 539.931 C 1050.93 550.329 1055.78 560.618 1056.55 562.138 C 1058.33 565.619 1065.72 580.093 1078.21 605.929 C 1080.18 610.009 1081.87 612.075 1078.89 614.086 C 1076.97 615.384 1070.69 620.361 1068.66 621.832 C 1061.91 626.705 1062.08 626.898 1060.41 628.124 C 1058.8 629.308 1011.53 654.198 1011.17 654.464 C 1008.02 656.774 993.381 618.855 992.365 616.191 C 991.111 612.9 984.441 599.862 983.376 597.043 C 982.456 594.61 979.061 587.865 978.686 586.995 C 978.51 586.588 976.188 582.229 975.412 580.192 C 975.14 579.478 975.054 579.538 974.69 578.875 C 974.063 577.208 974.06 577.229 973.32 575.617 C 973.116 575.177 970.942 570.486 970.786 570.115 C 970.581 569.626 967.236 563.197 966.413 561.046 C 966.136 560.32 966.052 560.393 965.686 559.731 C 965.529 559.313 964.551 556.718 963.551 554.572 C 963.483 554.426 963.317 554.34 963.249 554.194 C 961.442 550.406 961.554 550.363 961.376 550.046 C 961.258 549.835 960.125 547.814 959.921 547.396 C 957.301 542.029 958.469 541.8 958.572 541.304 C 970.78 536.893 970.742 536.847 983.046 532.677 C 991.253 529.895 993.431 528.925 997.815 527.422 C 1024.86 518.155 1026.66 517.071 1032.75 515.322 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 726.144 887.893 C 724.066 881.67 724.046 881.686 723.873 881.143 C 722.955 878.267 712.562 845.69 712.412 845.178 C 707.821 829.481 707.11 829.698 706.99 828.283 C 706.975 828.108 706.877 826.946 707.73 826.209 C 708.85 825.24 726.37 818.569 727.816 817.975 C 737.402 814.039 737.45 814.212 747.058 810.34 C 770.79 800.776 770.845 800.922 772.905 800.083 C 793.596 791.658 793.654 791.872 795.449 791.136 C 798.809 789.76 799.797 788.916 801.363 792.213 C 807.335 804.781 807.513 804.679 808.01 805.781 C 810.623 811.578 817.079 824.391 817.871 826.179 C 819.694 830.291 836.544 864.443 839.574 871.075 C 840.387 872.854 840.726 873.11 839.396 874.537 C 838.969 874.995 814.414 888.225 810.279 890.595 C 807.863 891.98 802.234 894.866 801.4 895.322 C 800.51 895.809 797.012 898.522 795.54 896.998 C 795.038 896.478 795.106 896.444 791.448 888.944 C 790.885 887.79 790.902 887.811 790.337 886.681 C 782.264 870.508 782.354 870.465 781.628 869.071 C 778.836 863.702 778.668 862.065 775.413 863.699 C 767.139 867.855 767.089 867.746 766.379 868.125 C 760.557 871.232 756.76 872.857 756.28 873.572 C 755.296 875.039 755.952 875.27 764.369 892.345 C 771.134 906.068 771.279 905.98 771.798 907.204 C 773.156 910.402 771.69 910.42 768.558 911.905 C 763.258 914.418 756.433 917.802 755.887 918.057 C 740.492 925.25 740.539 925.763 739.098 925.48 C 737.399 925.146 736.673 919.578 734.368 912.918 C 729.528 898.931 729.874 898.843 726.144 887.893 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 778.421 977.764 C 775.347 979.218 760.788 985.679 760.509 985.752 C 758.957 986.162 758.25 985.132 757.553 983.587 C 748.2 962.861 742.095 950.144 741.512 948.811 C 741.351 948.442 741.318 948.464 739.419 944.237 C 736.698 938.182 736.679 938.167 736.677 937.591 C 736.673 935.723 737.546 936.175 744.958 932.26 C 749.769 929.718 749.969 930.142 806.503 903.288 C 817.823 897.911 826.663 893.943 840.638 887.166 C 843.981 885.545 846.045 884.517 847.09 885.009 C 847.922 885.401 847.763 885.616 851.675 895.967 C 855.45 905.954 855.053 906.072 860.54 920.789 C 861.198 922.555 865.434 934.698 865.591 935.247 C 866.551 938.606 863.734 939 860.981 940.267 C 860.581 940.451 860.61 940.494 856.024 942.667 C 854.24 943.513 854.134 943.275 833.541 952.861 C 831.783 953.679 831.751 953.599 811.437 962.793 C 780.215 976.923 780.208 976.903 778.421 977.764 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 855.262 218.738 C 853.718 209.499 853.636 209.518 853.515 208.713 C 852.741 203.583 852.606 203.627 851.711 198.502 C 847.02 171.661 847.058 171.658 846.64 169.326 C 844.5 157.368 844.553 157.162 845.289 156.43 C 846.076 155.649 848.023 155.519 849.091 155.353 C 878.701 150.752 881.243 150.402 884.045 150.016 C 908.003 146.718 907.947 146.472 910.029 146.19 C 919.827 144.865 920.163 144.552 921.065 145.74 C 921.434 146.225 921.871 148.805 921.917 149.077 C 924.026 161.521 924.059 161.509 924.213 162.595 C 925.964 174.978 927.119 181.126 927.87 186.185 C 930.024 200.701 930.296 200.63 930.469 201.892 C 931.127 206.688 932.587 213.618 932.679 214.285 C 933.332 219.018 934.016 220.234 931.313 220.925 C 902.325 228.328 902.366 228.4 899.835 228.993 C 881.467 233.295 860.808 239.537 859.308 238.836 C 859.14 238.757 859.191 238.478 859.082 238.328 C 858.908 238.088 858.471 237.968 858.253 236.814 C 858.115 236.089 858.066 235.349 857.929 234.625 C 857.856 234.2 857.665 233.801 857.592 233.376 C 856.919 229.442 857.137 229.43 856.385 225.496 C 855.707 220.565 855.613 220.603 855.262 218.738 Z" fill="#191919" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1268.92 886.732 C 1271.58 884.291 1271.58 884.307 1274.28 881.92 C 1281.46 875.568 1281.41 875.528 1282.06 874.998 C 1284.5 872.975 1285.76 875.535 1294.92 883.953 C 1296.46 885.365 1301.93 890.436 1302.54 891 C 1321.59 908.641 1324.55 911.453 1326.44 913.252 C 1335.62 921.976 1338.2 922.73 1335.59 925.199 C 1333.4 927.28 1326.84 932.987 1326.61 933.196 C 1314.51 944.189 1303.36 953.94 1301.09 956.006 C 1291.31 964.939 1291.19 964.799 1290.35 965.581 C 1285.94 969.659 1285.84 969.51 1281.4 973.539 C 1278.47 976.205 1277.74 977.733 1275.46 975.51 C 1259.73 960.151 1259.7 960.193 1258.34 958.853 C 1231.72 932.631 1231.62 932.745 1229.32 930.441 C 1227.43 928.535 1224.91 926.948 1226.14 924.944 C 1226.5 924.375 1242.16 910.613 1246.32 906.909 C 1248.13 905.297 1262.51 892.483 1268.92 886.732 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 805.656 175.031 C 806.168 177.87 806.149 177.856 806.764 180.657 C 807.23 183.486 807.289 183.458 807.853 186.283 C 808.222 188.133 807.943 188.239 810.158 198.644 C 811.653 206.576 811.748 206.531 813.44 214.432 C 815.138 222.876 815.042 222.872 816.782 231.297 C 817.648 236.497 817.794 236.451 817.84 236.905 C 817.929 237.792 817.217 239.685 817.09 239.789 C 816.818 240.015 816.405 240.009 816.133 240.234 C 805.655 243.993 766.171 257 763.048 257.97 C 747.837 262.696 746.568 264.876 745.329 261.669 C 745.258 261.485 740.486 244.128 739.79 241.382 C 734.83 221.813 733.5 218.38 731.327 209.752 C 728.137 197.088 726.834 194.395 728.068 193.224 C 728.606 192.713 750.427 186.127 757.673 184.149 C 763.715 182.5 773.231 179.452 779.806 177.558 C 798.087 172.291 798.069 172.264 799.665 171.834 C 801.942 171.219 801.967 170.269 804.1 171.278 C 804.831 171.624 804.967 172.061 805.656 175.031 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 903.218 388.702 C 906.706 389.183 906.792 389.149 916.571 386.125 C 920.288 384.976 920.283 384.987 966.325 371.057 C 969.215 370.183 972.802 368.801 973.756 370.226 C 974.592 371.477 983.615 395.686 986.436 402.394 C 989.325 409.265 989.352 410.698 995.976 426.95 C 996.3 427.745 999.617 435.885 999.631 437.045 C 999.633 437.167 999.579 437.144 998.913 438.39 C 986.836 442.435 985.696 442.183 963.041 449.071 C 948.384 453.527 948.266 453.069 933.678 457.751 C 925.111 460.501 924.21 460.277 923.391 460.074 C 921.864 459.694 922.289 459.191 921.828 457.696 C 921.711 457.317 920.896 454.677 920.41 452.936 C 919.113 447.676 918.347 445.567 918.194 445.041 C 916.683 439.241 916.462 439.319 912.507 425.916 C 911.13 420.357 910.923 420.438 909.514 414.865 C 907.857 409.667 904.994 400.172 904.608 398.893 C 903.284 393.796 902.269 391.151 902.586 390.115 C 902.737 389.622 903.067 389.195 903.218 388.702 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1172.68 856.706 C 1173.4 856.642 1173.37 856.862 1174.07 856.8 C 1174.18 856.79 1174.54 856.758 1175.34 856.469 C 1175.72 856.333 1176.22 856.154 1179.29 853.329 C 1180.17 852.521 1185.24 847.959 1185.76 847.493 C 1194.38 839.74 1194.28 839.666 1202.98 831.989 C 1208.95 826.716 1208.75 826.508 1214.77 821.305 C 1218.87 817.764 1220.14 816.334 1221.61 816.517 C 1222.02 816.569 1226.38 820.873 1236.3 829.986 C 1237.19 830.806 1242.41 835.601 1247.34 840.361 C 1249.85 842.784 1249.95 842.637 1253.25 845.698 C 1270.98 862.193 1271.06 862.229 1271.16 862.835 C 1271.42 864.413 1270.71 864.52 1263.5 871.193 C 1248.59 884.995 1243.54 889.533 1241.78 891.108 C 1233.6 898.456 1228.21 903.578 1224.05 907.199 C 1218.86 911.715 1215.06 916.006 1213.62 916.15 C 1211.93 916.318 1211.92 915.577 1195.33 899.133 C 1193.7 897.519 1182.01 885.933 1175.06 878.86 C 1164.37 867.967 1162.53 867.172 1163.05 865.193 C 1163.25 864.461 1163.43 864.56 1169.92 858.681 C 1171.19 857.532 1171.2 857.566 1172.68 856.706 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 890.474 471.25 C 890.835 471.229 891.17 471.023 891.532 471.002 C 892.914 470.921 893.484 472.006 893.942 473.225 C 894.847 475.636 894.89 475.601 895.769 477.901 C 897.427 482.441 897.37 482.436 899.105 486.923 C 900.818 491.439 900.803 491.422 902.631 495.882 C 903.116 497.22 903.138 497.189 908.837 512.546 C 912.235 520.912 912.289 520.878 913.884 525.152 C 914.837 528.029 918.797 538.371 918.846 538.49 C 920.02 541.302 919.953 541.313 921.136 544.116 C 921.159 544.229 922.161 545.766 921.108 546.766 C 920.868 546.993 920.686 547.166 917.378 548.523 C 910.58 551.463 910.381 550.9 895.992 556.494 C 893.84 557.331 893.794 557.197 868.905 566.452 C 860.683 569.51 859.488 569.456 858.692 568.001 C 857.438 565.709 855.906 560.811 852.156 550.973 C 851.318 548.821 844.242 530.656 841.846 524.016 C 841.391 522.756 841.227 522.832 835.872 508.38 C 831.177 495.707 830.711 495.875 830.546 494.714 C 830.523 494.552 830.341 493.27 830.874 492.698 C 831.306 492.234 836.027 490.623 839.815 489.27 C 841.919 488.518 845.807 487.315 855.554 483.559 C 861.911 481.108 869.838 478.648 880.332 474.57 C 885.316 472.633 885.393 472.904 890.474 471.25 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 935.835 230.16 C 935.869 230.23 936.566 230.974 936.877 232.361 C 937.008 232.943 939.024 243.002 940.292 248.112 C 943.111 259.475 948.174 285.479 950.479 294.266 C 951.967 299.939 950.184 299.974 949.475 300.223 C 947.699 300.846 947.62 300.574 926.875 306.736 C 924.361 307.483 924.277 307.181 895.348 315.747 C 882.016 319.694 881.774 319.541 880.764 318.905 C 880.603 318.803 880.166 318.966 878.729 313.322 C 878.293 311.54 874.257 295.037 873.432 291.002 C 872.46 287.741 868.323 272.035 867.045 266.142 C 866.442 263.361 863.731 252.72 863.435 251.555 C 863.375 251.322 862.824 249.158 863.129 248.568 C 863.733 247.4 868.219 247.099 885.16 242.369 C 894.746 239.691 896.355 239.849 924.577 232.257 C 925.382 232.04 933.81 229.773 934.708 229.833 C 935.098 229.859 935.445 230.134 935.835 230.16 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 929.183 469.188 C 939.239 465.996 939.194 465.918 949.278 462.855 C 960.028 459.589 959.968 459.465 970.693 456.186 C 999.851 447.27 999.734 446.922 1002.33 446.412 C 1004.57 445.972 1005.09 447.816 1007.15 452.878 C 1011.28 463.009 1011.44 462.924 1013.47 467.701 C 1027.68 501.272 1028.1 501.14 1029.1 505.711 C 1028.11 506.452 1028.14 506.488 1026.99 506.88 C 1025.19 507.491 1011.04 512.651 1008.89 513.397 C 985.039 521.682 985.079 521.715 983.005 522.43 C 958.21 530.977 958.296 531.159 956.11 531.8 C 952.617 532.823 953.138 530.697 949.93 524.837 C 948.517 520.831 945.498 514.077 944.979 512.653 C 944.724 511.954 944.642 512.012 944.294 511.35 C 943.672 509.662 943.691 509.674 942.934 508.049 C 942.73 507.61 940.926 503.734 940.481 502.516 C 939.436 499.657 939.208 499.77 938.179 496.908 C 937.924 496.199 937.849 496.253 937.515 495.589 C 936.934 493.896 936.922 493.929 936.215 492.284 C 934.759 489.043 934.873 489.021 933.386 485.776 C 930.768 480.063 930.909 480.021 928.415 474.235 C 928.143 473.453 927.066 471.014 928.026 469.985 C 928.345 469.643 928.863 469.53 929.183 469.188 Z" fill="#191919" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1116.86 913.692 C 1117.04 913.524 1159.49 875.828 1159.75 875.688 C 1160.05 875.526 1161.28 875.518 1161.56 875.664 C 1162.11 875.959 1162.03 876.059 1167.28 881.019 C 1176.28 889.527 1176.29 889.5 1181.14 894.165 C 1198.58 910.956 1198.69 910.809 1200.19 912.283 C 1209.51 921.438 1211.13 921.985 1211.02 923.651 C 1210.93 924.978 1210.42 924.709 1204.37 930.234 C 1200.9 933.407 1184.57 947.816 1170.99 959.957 C 1168.29 962.365 1168.26 962.302 1165.57 964.686 C 1164.65 965.493 1156.03 973.592 1154.88 973.864 C 1152.75 974.367 1147.31 967.413 1144.4 964.698 C 1140.02 960.614 1140.16 960.499 1135.92 956.288 C 1132.8 953.19 1132.72 953.29 1129.74 950.08 C 1125.94 945.986 1125.58 946.377 1121.77 942.299 C 1117.68 937.929 1117.57 938.067 1113.36 933.808 C 1105.45 925.802 1105.3 925.769 1105.32 924.803 C 1105.34 923.564 1107.07 922.381 1116.86 913.692 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1005.45 153.54 C 1004.86 149.483 1004.69 149.537 1002.33 135.664 C 1001.51 130.839 1000.16 128.094 1004.91 128.248 C 1007.34 128.327 1007.34 128.318 1043.19 128.318 C 1058.99 128.318 1059.64 128.037 1060.34 129.882 C 1060.87 131.306 1065.27 158.761 1068.17 172.726 C 1068.73 175.384 1074.17 206.218 1074.41 207.73 C 1074.73 209.814 1075.74 212.112 1073.49 213.023 C 1073.19 213.144 1050.98 217.856 1046.51 218.614 C 1038.72 219.935 1030.34 221.702 1029.6 221.846 C 1018.96 223.906 1018.56 224.305 1017.79 223.105 C 1017.03 221.924 1007.22 162.344 1005.45 153.54 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 864.592 390.325 C 865.841 390.363 866.568 389.704 867.497 392.361 C 868.676 395.736 868.513 395.76 869.651 399.134 C 870.401 402.026 870.386 402.01 870.461 402.257 C 870.708 403.075 872.856 410.187 873.644 412.451 C 877.956 424.846 877.683 424.914 878.06 425.989 C 879.62 430.439 879.692 431.732 880.41 433.84 C 881.788 437.884 881.624 437.924 883.09 441.937 C 883.673 444.03 883.803 444.557 885.357 448.698 C 887.187 455.473 887.502 455.732 888.76 459.893 C 888.637 460.445 888.836 460.443 888.712 460.999 C 888.69 461.094 888.6 461.498 888.26 462.132 C 888.159 462.321 887.944 462.431 887.843 462.62 C 885.489 463.404 885.525 463.436 883.655 464.295 C 880.155 465.903 861.691 472.307 843.154 479.029 C 841.974 479.457 830.665 483.558 828.368 484.282 C 825.216 485.277 825.529 483.007 821.971 474.311 C 820.122 469.793 816.989 460.02 814.143 452.908 C 810.848 444.678 809.763 440.771 807.516 434.856 C 805.648 429.319 803.903 425.778 802.841 422.527 C 799.886 413.486 798.456 412.815 800.496 411.683 C 801.081 411.359 839.855 398.373 843.28 397.226 C 859 391.961 858.941 391.785 864.592 390.325 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1171.87 853.904 C 1167.36 849.703 1143.34 826.106 1134.7 817.893 C 1134.1 817.33 1127.8 811.349 1127.41 810.709 C 1126.37 809.046 1127.84 807.947 1132.18 803.987 C 1136.18 800.337 1181.6 758.893 1182.24 758.44 C 1184.73 756.696 1186.55 759.811 1190.45 763.232 C 1191.69 764.327 1192.74 765.243 1205.77 777.211 C 1207.83 779.109 1229.93 799.406 1231.54 800.993 C 1233.93 803.355 1232.62 803.974 1229.57 806.842 C 1224.07 812.012 1223.92 811.831 1221.81 813.739 C 1221.61 813.919 1221.53 814.257 1221.27 814.337 C 1220.62 814.539 1219.9 814.405 1219.23 814.542 C 1217.47 814.903 1201.27 830.322 1194.07 836.581 C 1193.83 836.792 1191.12 839.142 1191.04 839.227 C 1190.86 839.394 1190.79 839.649 1190.62 839.815 C 1190.26 840.161 1186.68 843.212 1186.33 843.506 C 1185.9 843.879 1182.7 846.605 1180.95 848.288 C 1180.78 848.454 1180.69 848.696 1180.51 848.86 C 1180.13 849.217 1180.09 849.154 1175.56 853.081 C 1175.38 853.238 1174.22 854.239 1172.8 854.264 C 1172.47 854.269 1172.2 853.898 1171.87 853.904 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1055.07 895.248 C 1055.68 895.83 1076.37 915.411 1078.22 917.164 C 1085.9 924.431 1088.94 926.967 1089.31 928.243 C 1089.62 929.32 1087.59 930.933 1085.42 932.935 C 1084.63 933.671 1084.56 933.593 1075.39 942.05 C 1066.04 950.665 1046.11 968.684 1043.56 970.992 C 1034.91 978.807 1034.85 978.772 1034.53 978.841 C 1032.59 979.251 1031.6 977.336 1027.56 973.447 C 1022.43 968.501 990.676 936.782 987.476 933.586 C 984.812 930.925 986.357 930.213 990.259 926.668 C 999.094 918.639 998.995 918.56 1007.86 910.556 C 1010.53 908.139 1010.59 908.236 1013.23 905.769 C 1013.48 905.539 1036.52 884.614 1038.05 883.315 C 1040.85 880.941 1041.29 882.432 1044.03 884.853 C 1049.05 889.279 1048.92 889.384 1055.07 895.248 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 761.845 736.45 C 764.933 735.347 764.927 735.344 765.196 735.25 C 766.807 734.689 783.083 729.021 785.411 728.495 C 785.591 728.454 786.576 728.231 787.589 729.29 C 787.783 729.493 789.442 733.47 790.77 737.244 C 793.226 744.224 799.238 759.526 801.812 766.598 C 804.589 774.227 804.865 774.637 803.583 775.72 C 802.907 776.292 802.843 776.139 801.175 776.75 C 792.978 779.748 769.465 788.741 724.393 805.433 C 714.331 809.159 713.304 810.244 712.22 808.065 C 712.045 807.715 694.575 762.41 694.429 761.86 C 693.498 758.345 695.946 759.431 710.004 754.322 C 728.47 747.611 754.485 739.073 761.845 736.45 Z" fill="#191919" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 493.509 303.327 C 468.937 312.755 451.376 320.244 449.74 320.39 C 448.326 320.517 447.604 318.681 447.518 318.462 C 441.577 303.364 441.733 303.327 435.813 288.236 C 431.242 276.584 431.161 276.634 430.767 275.622 C 428.565 269.959 428.659 269.613 428.802 269.086 C 429.106 267.971 432.011 267.022 435.223 265.808 C 436.288 265.405 444.048 262.471 448.56 260.847 C 450.464 260.162 450.321 259.848 472.213 251.859 C 473.926 251.234 473.838 251.023 493.533 243.776 C 510.827 237.413 511.033 236.498 512.624 237.622 C 513.942 238.553 513.32 238.979 525.154 267.816 C 526.514 271.128 529.66 279.625 531.845 284.734 C 533.551 288.719 531.415 288.536 527.374 290.113 C 510.439 296.724 510.56 296.962 493.509 303.327 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 801.125 152.537 C 801.41 155.379 801.466 155.354 802.088 158.123 C 802.441 160.125 802.444 160.111 802.469 160.285 C 802.84 162.83 801.414 162.671 800.35 163.186 C 796.133 164.727 781.209 168.568 740.108 180.105 C 727.142 183.744 727.151 183.899 726.25 183.832 C 724.357 183.691 724.829 182.738 722.436 168.07 C 722.012 165.471 722.114 165.456 717.301 135.555 C 717.294 135.512 714.435 116.92 714.384 116.36 C 714.365 116.149 714.207 114.412 715.429 113.951 C 715.965 113.748 715.981 113.771 780.001 113.771 C 792.119 113.771 792.425 113.555 793.378 114.885 C 793.976 115.72 798.693 138.425 801.125 152.537 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 491.336 177.929 C 496.509 191.57 497.138 194.052 500.574 202.617 C 501.732 205.505 505.518 215.943 505.523 215.956 C 506.231 218.116 506.554 218.033 506.555 219.306 C 506.555 219.719 506.414 220.126 506.432 220.539 C 506.447 220.904 506.48 221.29 506.652 221.612 C 506.915 222.104 507.494 222.398 507.7 222.916 C 508.252 224.305 507.736 224.392 506.337 224.881 C 502.251 226.306 465.255 239.966 437.617 250.678 C 437.147 250.86 425.645 255.127 425.282 255.209 C 422.985 255.72 422.438 253.227 422 252.064 C 417.647 240.479 417.763 240.458 413.577 228.614 C 413.226 227.619 413.149 227.669 409.014 216.24 C 408.652 215.24 404.724 204.385 404.804 203.623 C 405.023 201.549 407.932 201.839 426.537 194.852 C 428.777 194.01 428.782 194.093 454.746 184.893 C 467.68 180.311 467.802 180.707 480.57 175.673 C 481.176 175.434 486.8 173.216 488.376 173.387 C 490.018 173.565 491.112 177.415 491.336 177.929 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 926.214 556.74 C 927.024 558.789 927.115 558.736 927.245 559.003 C 927.661 559.898 928.404 561.978 930.434 565.852 C 931.661 569.192 931.919 569.075 933.117 572.411 C 933.546 573.604 933.673 573.532 934.097 574.726 C 934.525 575.93 934.6 575.868 935.11 577.026 C 936.154 579.33 936.018 579.375 937.201 581.607 C 938.034 583.741 938.137 583.67 939.002 585.81 C 939.755 587.673 939.874 587.603 940.67 589.448 C 941.081 590.4 940.96 590.429 941.384 591.39 C 941.446 591.532 941.621 591.603 941.683 591.744 C 941.832 592.168 942.794 594.907 943.713 596.983 C 943.776 597.124 943.945 597.198 944.007 597.339 C 944.306 598.137 945.036 600.086 948.27 607.097 C 948.799 608.242 948.76 608.239 949.279 609.4 C 949.343 609.543 949.515 609.618 949.579 609.761 C 950.762 613.119 951.011 613.007 952.227 616.338 C 952.485 617.046 952.568 616.989 952.912 617.645 C 953.523 619.334 953.521 619.314 954.255 620.939 C 955.806 624.373 955.13 624.524 955.154 624.916 C 954.22 625.435 953.286 625.954 952.352 626.473 C 943.989 629.969 916.756 639.969 903.754 645.147 C 898.165 647.372 896.911 647.607 895.654 645.831 C 894.457 644.14 890.912 635.999 887.355 628.524 C 878.993 611.035 879.106 610.989 878.997 610.731 C 878.706 610.04 878.672 610.071 878.337 609.391 C 868.818 589.585 869.105 589.456 866.227 583.895 C 864.779 581.095 863.801 579.419 864.278 577.864 C 864.385 577.514 864.653 577.28 864.698 577.241 C 865.094 576.895 865.187 577.071 865.585 576.723 C 869.974 574.938 869.987 575.004 907.324 561.192 C 908.392 560.797 918.048 557.225 920.762 556.513 C 923.001 555.925 923.127 555.563 924.182 555.421 C 925.508 555.243 925.37 555.71 926.214 556.74 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1134.96 850.263 C 1142.39 857.351 1149.18 862.794 1149.4 863.999 C 1149.82 866.182 1148.68 865.898 1132.3 880.681 C 1130.82 882.015 1111.98 898.739 1110.21 900.308 C 1109.61 900.841 1109.63 900.82 1109.02 901.357 C 1094 914.559 1094.1 914.85 1093.11 914.925 C 1091.58 915.039 1090.27 913.299 1084.98 908.15 C 1053.7 877.706 1048.15 872.657 1047.91 871.953 C 1047.31 870.188 1048.65 869.296 1051.14 867.06 C 1055.88 862.805 1055.93 862.887 1060.64 858.606 C 1061.46 857.855 1071.66 848.859 1072.62 848.012 C 1080.99 840.622 1080.93 840.575 1084.48 837.432 C 1087.17 835.043 1087.23 835.127 1089.89 832.687 C 1095.22 827.816 1095.34 827.98 1100.7 823.157 C 1103.53 820.606 1104.22 822.107 1107.93 825.494 C 1128.42 844.206 1132.81 848.269 1134.96 850.263 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 843.234 318.854 L 843.823 319.314 C 845.569 324.857 845.527 324.851 847.296 330.396 C 847.479 331.031 850.904 341.647 851.917 344.994 C 852.13 345.705 854.025 352.035 854.535 353.889 C 855.154 356.134 855.244 356.089 855.871 358.333 C 856.097 358.977 856.827 361.055 858.613 366.416 C 858.873 367.318 858.906 367.289 862.001 377.66 C 862.068 377.94 862.735 379.842 862.345 381.014 C 862.192 381.473 861.968 381.605 861.916 381.636 C 861.685 381.773 861.688 381.733 858.825 382.946 C 843.897 388.554 837.269 390.255 819.446 396.654 C 815.19 398.182 799.905 403.305 798.204 403.876 C 796.452 404.463 796.203 404.249 795.332 402.627 C 794.475 401.031 791.35 389.107 787.054 376.378 C 784.302 368.225 781.158 355.902 776.936 343.722 C 775.918 340.786 776.332 340.263 778.963 339.376 C 791.3 335.215 791.303 335.304 803.589 331.064 C 808.799 329.265 814.856 327.447 835.292 320.326 C 842.368 317.861 842.84 318.841 843.234 318.854 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 814.458 551.559 C 817.947 558.83 817.809 558.878 821.082 566.244 C 823.075 571.356 825.725 576.066 829.132 584.189 C 832.191 591.484 836.073 599.053 838.597 605.38 C 841.227 611.971 844.153 616.022 846.924 624.442 C 846.746 624.899 846.568 625.357 846.389 625.815 C 834.825 631.206 834.49 630.358 819.185 636.694 C 813.644 638.988 808.622 640.703 798.914 644.549 C 795.834 645.77 795.219 645.439 793.88 642.395 C 784.855 621.872 768.151 585.368 766.247 580.736 C 764.137 575.605 761.318 570.9 761.692 569.351 C 761.919 568.413 762.239 568.59 771.887 564.615 C 783.659 559.765 783.791 560.142 796.815 554.863 C 798.352 554.24 810.599 549.552 811.493 549.35 C 813.169 548.97 814.327 551.337 814.458 551.559 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 481.519 148.122 L 480.782 149.138 C 481.113 150.324 481.221 150.275 481.44 151.498 C 482.045 154.877 483.585 158.678 483.829 159.282 C 483.984 159.664 484.242 160.004 484.364 160.398 C 484.535 160.953 484.361 160.965 484.523 161.524 C 484.696 162.123 484.84 162.044 485.017 162.656 C 482.868 163.097 481.642 163.35 459.04 171.439 C 451.438 174.159 451.379 173.95 439.909 178.226 C 437.667 179.062 437.626 178.937 411.72 188.245 C 410.883 188.545 407.089 190.394 406.096 188.618 C 405.736 187.974 390.757 141.418 389.495 137.817 C 388.239 134.233 390.244 134.697 393.846 133.48 C 398.958 131.752 439.443 119.747 458.962 113.704 C 462.337 112.659 466.818 111.034 467.96 111.337 C 469.259 111.683 469.859 114.522 472.536 122.147 C 474.259 127.053 473.927 127.156 478.985 141.397 C 479.042 141.558 480.148 144.71 480.163 144.754 C 480.75 146.49 480.837 146.427 481.519 148.122 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 819.673 250.723 C 821.261 250.623 822.292 249.785 823.096 252.516 C 823.95 255.418 823.95 255.395 824.841 258.307 C 827.142 267.47 833.854 287.692 838.003 303.118 C 838.538 304.667 840.189 308.674 839.297 309.644 C 838.033 311.02 812.875 318.938 799.321 323.856 C 797.446 324.536 794.747 325.515 775.711 331.882 C 773.369 332.666 772.831 332.694 771.886 330.422 C 770.53 327.161 752.02 277.586 751.692 276.307 C 751.263 274.63 751.272 274.388 752.737 273.481 C 752.803 273.441 770.361 267.205 809.17 254.355 C 814.459 252.604 814.384 252.448 819.673 250.723 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1246.79 463.172 C 1246.84 464.313 1247.78 464.924 1244.86 466.973 C 1231.69 473.89 1231.7 473.896 1230.54 474.482 C 1217.16 481.285 1216.94 482.007 1215.74 481.049 C 1214.86 480.352 1211.7 472.683 1211.39 471.936 C 1209.66 467.742 1205.36 458.676 1202.68 452.657 C 1186.59 416.39 1176.97 395.732 1175.42 391.964 C 1173.75 387.903 1169.19 378.308 1168.36 376.336 C 1164.4 366.914 1163.64 366.839 1164.46 365.342 C 1164.68 364.947 1166.16 364.148 1166.32 364.062 C 1167.66 363.344 1176.9 359.161 1178.69 358.415 C 1182.73 356.739 1191.02 352.636 1192.03 352.31 C 1193.26 351.913 1193.38 351.862 1194.31 352.735 C 1194.71 353.101 1194.63 353.142 1195.93 355.814 C 1198.24 360.567 1198.35 360.494 1200.66 365.246 C 1201.32 366.612 1201.94 368.235 1202.04 368.5 C 1203.28 371.747 1209.79 384.266 1211.07 387.632 C 1212.14 390.421 1212.26 390.341 1214.3 394.459 C 1219.57 405.066 1219.16 405.237 1224.46 415.855 C 1228.05 423.063 1227.71 423.2 1231.26 430.459 C 1237.26 442.736 1237.68 443.831 1238.14 445.034 C 1238.87 446.908 1245.48 460.304 1246.79 463.172 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 808.47 540.333 L 808.096 541.355 C 806.327 542.29 806.336 542.257 804.452 542.967 C 792.248 547.568 761.342 559.886 759.63 560.423 C 756.478 561.412 756.34 559.548 754.808 556.041 C 746.254 536.456 746.433 536.399 745.683 534.7 C 736.891 514.78 737.163 514.663 736.327 512.964 C 735.286 510.848 735.351 510.843 730.167 498.559 C 727.246 491.639 726.208 490.456 727.867 489.175 C 728.006 489.068 776.593 469.766 777.613 469.915 C 779.85 470.242 781.699 477.211 786.679 488.334 C 796.846 511.043 800.867 521.59 803.519 527.764 C 807.553 537.154 807.702 537.071 808.013 537.902 C 808.671 539.655 808.385 539.879 808.47 540.333 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 884.193 331.382 C 883.801 329.284 883.756 329.301 883.77 329.117 C 883.777 329.03 883.822 328.435 884.091 328.071 C 884.918 326.949 887.133 326.594 895.212 324.28 C 950.538 308.434 950.532 308.412 951.719 308.128 C 954.124 307.553 954.663 308.907 955.271 311.066 C 957.318 318.328 960.726 328.006 962.005 332.47 C 965.586 344.964 965.741 344.901 969.724 357.289 C 970.664 360.211 970.221 360.42 969.522 361.449 C 963.736 363.386 912.442 378.622 905.503 381.054 C 905.173 381.083 904.922 381.42 904.592 381.449 C 904.397 381.466 904.441 381.089 902.151 381.274 C 900.365 381.419 900.477 381.778 899.979 381.927 C 898.372 379.805 898.817 379.589 896.933 374.05 C 896.405 372.133 896.419 372.142 896.363 371.98 C 895.596 369.762 895.733 369.747 895.062 367.525 C 892.645 359.515 892.954 359.433 890.227 351.531 C 889.036 347.142 886.94 340.966 885.693 336.892 C 885.582 336.449 884.906 333.756 884.193 331.382 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1047.64 233.07 C 1055.11 232.044 1067.45 229.788 1089.31 227.498 C 1089.56 227.472 1091.72 227.246 1092.32 228.176 C 1092.52 228.485 1095.95 239.1 1096.96 242.67 C 1099.1 250.264 1106.42 273.723 1107.18 276.419 C 1108.92 282.602 1110.03 284.473 1108.79 285.685 C 1107.8 286.645 1107.63 286.263 1106.28 286.605 C 1101.82 287.737 1085.44 291.244 1083.62 291.633 C 1054.51 297.865 1051.23 299.178 1047.67 299.577 C 1046.44 299.715 1045.81 298.841 1045.71 298.702 C 1045.35 298.205 1037.9 273.309 1037.79 272.914 C 1032.63 254.56 1027.09 238.662 1027.39 236.943 C 1027.71 235.124 1032.16 235.068 1033.1 234.957 C 1036.5 234.556 1040.57 233.585 1047.64 233.07 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 759.229 420.94 C 764.083 432.561 764.676 434.306 765.079 435.494 C 766.37 439.295 773.333 456.252 774.015 458.04 C 774.455 459.195 774.557 460.233 774.56 460.242 C 774.635 460.483 774.861 460.657 774.936 460.897 C 773.407 462.833 773.088 462.415 770.778 463.293 C 768.432 464.185 768.499 464.339 741.548 474.684 C 734.707 477.31 734.805 477.487 727.943 480.063 C 726.271 480.691 724.663 481.207 724.659 481.207 C 722.979 481.307 722.267 479.706 722.168 479.484 C 721.134 477.16 721.268 477.126 710.497 449.905 C 706.952 440.944 706.936 440.976 703.429 432.008 C 696.928 415.381 696.496 415.349 696.959 414.238 C 697.516 412.905 697.964 413.295 738.018 397.723 C 741.238 396.471 744.429 395.115 744.983 394.88 C 745.237 394.772 747.631 393.754 748.357 394.147 C 748.516 394.233 748.382 394.522 748.476 394.676 C 748.833 395.261 749.004 395.145 749.372 396.074 C 752.186 403.173 756.583 413.507 758.308 418.609 C 758.372 418.799 758.376 418.782 759.229 420.94 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 850.878 633.849 C 852.06 634.722 852.296 634.544 852.856 635.961 C 854.244 639.469 857.871 647.409 858.323 648.398 C 864.627 661.892 864.275 662.027 870.648 675.467 C 872.067 678.46 874.157 683.568 874.448 684.279 C 875.897 687.821 882.475 699.679 882.25 701.636 C 882.053 703.355 881.372 702.966 874.441 707.462 C 872.199 708.917 872.107 708.763 845.955 724.923 C 842.354 727.147 841.755 727.688 838.521 724.967 C 836.285 723.085 836.283 723.097 836.09 722.932 C 828.323 716.307 823.778 709.772 822.512 706.862 C 818.996 698.781 818.971 698.811 815.346 690.784 C 814.465 688.833 814.559 688.795 804.718 666.228 C 799.821 654.998 799.856 654.873 800.147 653.859 C 800.472 652.72 802.903 652.452 818.303 646.304 C 820.447 645.449 823.039 644.414 845.164 635.764 C 846.353 635.299 846.326 635.303 847.494 634.833 C 850.269 633.715 850.335 633.986 850.878 633.849 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1161.54 761.293 C 1160.09 762.655 1132.05 788.149 1130.32 789.778 C 1129.53 790.521 1129.49 790.467 1120.31 798.921 C 1117.82 801.208 1117.2 801.831 1114.72 799.557 C 1111.5 796.603 1111.64 796.473 1108.41 793.545 C 1098.36 784.431 1098.51 784.309 1088.53 775.112 C 1087.83 774.47 1080.21 767.447 1079.92 766.962 C 1079.74 766.664 1079.75 765.436 1079.93 765.144 C 1080.39 764.403 1134.6 717.596 1134.68 717.543 C 1137.15 716.001 1137.6 717.051 1140.66 719.524 C 1143.48 721.801 1143.52 721.718 1146.31 723.999 C 1152.88 729.359 1174.55 746.745 1174.83 747.189 C 1175.95 748.95 1173.95 749.83 1161.54 761.293 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 937.9 886.32 C 934.742 883.246 934.745 883.261 934.471 882.993 C 932.152 880.723 932.38 880.355 932.421 879.825 C 932.513 878.616 932.923 878.76 950.425 862.115 C 959.106 853.86 959.162 853.947 967.867 845.741 C 973.184 840.728 973.917 839.101 976.112 840.134 C 976.868 840.489 976.77 840.628 983.887 847.09 C 995.066 857.24 995.282 857.451 996.239 858.387 C 998.193 860.3 1014.9 875.578 1015.57 876.201 C 1019.86 880.194 1021.43 880.907 1018.9 883.276 C 1017.22 884.84 1004.84 896.385 998.032 902.918 C 991.112 909.555 991.2 909.611 984.136 916.097 C 977.587 922.111 977.015 923.512 975.056 922.276 C 974.855 922.149 944.013 892.297 937.9 886.32 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 744.756 385.685 C 742.747 387.526 742.48 387.092 733.749 390.445 C 723.594 394.345 723.585 394.27 713.484 398.331 C 705.554 401.519 705.505 401.348 696.581 405.052 C 696.528 405.074 694.204 406.468 692.945 405.301 C 691.728 404.171 692.252 403.854 679.934 371.151 C 678.025 366.083 674.338 355.769 673.859 354.429 C 672.258 349.952 670.297 347.733 673.997 346.342 C 687.439 341.292 721.339 327.697 722.486 327.624 C 724.216 327.514 725.269 331.4 725.485 331.97 C 734.866 356.662 740.238 373.137 743.557 381.5 C 744.367 383.543 744.28 383.552 744.756 385.685 Z" fill="#191919" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 643.317 182.734 C 643.841 184.253 646.747 192.687 649.334 201.923 C 649.4 202.155 649.93 204.049 649.029 204.939 C 648.072 205.885 629.37 212.598 621.344 215.773 C 609.895 220.302 609.777 219.892 598.397 224.57 C 594.856 226.025 593.545 227.162 592.457 223.218 C 591.915 221.249 586.796 202.687 585.751 198.592 C 579.918 175.738 578.411 174.837 580.587 173.626 C 582.152 172.754 592.3 169.064 593.326 168.691 C 620.857 158.68 620.837 158.628 623.235 157.772 C 632.279 154.546 633.59 153.656 634.737 154.657 C 635.184 155.047 635.673 156.723 635.728 156.914 C 637.154 161.805 640.448 171.7 641.746 178.405 C 642.367 181.614 642.808 181.7 643.317 182.734 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 699.654 159.095 C 700.178 160.614 703.084 169.047 705.672 178.284 C 705.737 178.516 706.267 180.41 705.366 181.3 C 704.409 182.246 692.719 185.841 684.693 189.016 C 673.243 193.545 673.125 193.135 661.745 197.813 C 658.204 199.269 656.893 200.405 655.805 196.461 C 655.263 194.493 650.145 175.931 649.099 171.835 C 643.266 148.981 641.759 148.081 643.935 146.869 C 645.501 145.997 655.648 142.307 656.674 141.934 C 684.205 131.923 684.185 131.871 686.584 131.015 C 695.627 127.789 689.927 130.016 691.074 131.017 C 691.521 131.408 692.01 133.084 692.065 133.275 C 693.491 138.166 696.785 148.06 698.083 154.765 C 698.704 157.974 699.145 158.061 699.654 159.095 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1111.7 196.843 C 1112.64 209.393 1113.24 209.657 1112.2 210.931 C 1111.43 211.885 1101.52 212.658 1094.09 214.01 C 1091.98 214.394 1083.6 215.306 1083.14 215.26 C 1082.02 215.148 1081.87 215.089 1081.64 213.863 C 1081.36 212.277 1079.71 198.994 1079.36 195.91 C 1078.61 189.442 1071.76 138.025 1071.81 137.731 C 1071.84 137.569 1072.01 136.45 1073.22 136.388 C 1074.25 136.335 1074.2 136.686 1085.93 138.702 C 1092.89 139.9 1105.67 142.298 1105.93 142.371 C 1108.51 143.088 1107.71 144.984 1108.62 156.756 C 1110.24 177.85 1109.59 177.91 1110.49 183.833 C 1111.23 188.66 1111.64 195.799 1111.7 196.843 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1009.45 832.777 C 1007.4 830.639 1005.52 829.002 1005.44 827.947 C 1005.38 827.323 1005.31 826.495 1010.84 822.28 C 1013.95 819.904 1023.56 812.006 1025.75 810.241 C 1049.79 790.813 1049.74 790.748 1051.84 789.08 C 1055.73 785.998 1056.46 784.419 1060.17 787.731 C 1063.73 790.91 1063.79 790.805 1067.4 793.946 C 1080.72 805.545 1080.77 805.458 1081.9 806.491 C 1086.04 810.261 1086.03 810.246 1090.41 813.762 C 1090.61 813.92 1092.45 815.391 1091.78 816.619 C 1091.49 817.147 1080.5 827.015 1079.51 827.906 C 1076.99 830.165 1077.04 830.214 1048.17 856.259 C 1041.65 862.137 1041.69 862.17 1041.1 862.657 C 1038.76 864.603 1037.98 863.355 1036.59 861.942 C 1032.38 857.627 1032.49 857.414 1030.66 855.469 C 1011.04 834.668 1011.17 834.568 1009.45 832.777 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 627.472 117.202 C 629.08 121.713 634.634 138.801 634.452 139.829 C 634.19 141.311 633.919 141.222 632.505 141.78 C 625.934 144.372 622.252 144.97 602.211 152.174 C 602.129 152.204 576.329 160.865 576.315 160.864 C 576.157 160.852 575.022 160.766 574.595 159.872 C 574.391 159.443 560.179 115.024 560.234 113.96 C 560.242 113.814 560.297 112.75 560.953 112.279 C 561.49 111.893 574.002 108.303 579.783 106.272 C 582.445 105.338 582.461 105.471 613.396 95.617 C 613.84 95.476 618.457 94.005 619.045 94.17 C 620.847 94.676 620.261 95.413 627.472 117.202 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 909.924 100.092 C 910.472 100.109 913.018 99.56 913.71 101.587 C 913.869 102.052 919.712 134.275 919.516 135.597 C 919.232 137.525 917.347 137.432 908.784 138.522 C 857.034 145.111 857.078 145.392 852.576 145.939 C 843.545 147.038 842.698 147.418 841.783 146.346 C 840.951 145.371 837.919 128.903 836.79 124.235 C 836.637 123.598 835.92 120.631 834.974 116.256 C 833.353 108.756 831.764 106.298 835.612 105.944 C 837.301 105.789 837.291 105.892 838.99 105.758 C 904.258 100.602 904.242 100.438 909.924 100.092 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 761.325 682.165 C 764.748 689.467 766.716 694.954 771.417 704.703 C 773.378 708.767 771.618 709.184 769.541 710.047 C 746.804 719.499 746.848 719.599 744.858 720.388 C 728.29 726.956 728.16 727.623 726.915 726.859 C 725.645 726.08 719.148 709.711 717.009 705.476 C 715.523 702.532 711.112 691.819 706.149 681.032 C 701.966 671.941 702.006 671.624 702.114 670.747 C 702.282 669.39 703.866 669.048 710.01 666.482 C 725.165 660.151 725.225 660.357 740.349 653.942 C 744.209 652.304 745.92 651.609 746.982 651.845 C 747.975 652.065 747.935 652.332 754.172 666.075 C 757.812 674.097 757.542 674.189 761.325 682.165 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 600.267 647.273 C 602.827 652.868 605.198 659.233 609.435 668.597 C 609.442 668.613 617.892 688.203 618.627 689.908 C 618.741 690.171 619.926 692.919 619.946 693.24 C 620.071 695.268 618.03 695.548 610.717 698.632 C 599.534 703.348 599.589 703.432 588.334 707.969 C 587.512 708.301 587.551 708.349 578.136 712.32 C 576.182 713.144 574.691 713.995 573.437 711.386 C 572.492 709.418 556.809 672.374 554.849 668.333 C 554.164 666.92 551.747 661.089 551.485 660.455 C 550 656.872 551.572 656.696 556.609 654.574 C 561.99 652.308 579.342 645.104 581.32 644.283 C 582.411 643.829 594.51 638.806 595.044 638.805 C 596.992 638.801 596.685 639.589 600.267 647.273 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 635.774 620.49 C 637.282 619.808 639.089 618.99 654.874 612.548 C 659.43 610.688 658.356 614.045 662.945 623.29 C 664.67 626.766 668.844 637.209 670.718 641.358 C 674.773 650.334 674.591 650.384 678.524 659.41 C 681.026 665.151 682.365 666.889 680.45 668.201 C 680.396 668.239 666.124 674.277 647.894 681.805 C 641.431 684.474 636.721 687.384 635.474 685.471 C 634.962 684.686 612.53 632.595 612.442 632.314 C 612.389 632.143 612.098 631.21 613.048 630.171 C 613.788 629.362 626.025 624.67 635.774 620.49 Z" fill="#191919" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 707.487 655.699 C 698.941 659.279 698.275 659.703 697.215 658.704 C 696.032 657.588 696.652 657.226 688.914 640.15 C 688.148 638.459 688.424 638.364 679.714 618.844 C 679.285 617.883 678.512 616.151 674.579 606.729 C 674.079 605.533 673.746 605.601 673.879 604.3 C 674.025 602.877 676.005 602.287 687.406 597.592 C 717.594 585.158 717.603 584.72 718.947 585.064 C 720.168 585.377 719.685 585.915 725.914 599.685 C 726.574 601.143 726.557 601.144 741.813 636.789 C 742.731 638.934 742.755 638.918 742.797 639.156 C 743.277 641.878 741.137 641.547 731.239 645.818 C 720.519 650.445 718.355 651.001 707.487 655.699 Z" fill="#191919" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 627.864 611.411 C 618.816 615.281 618.741 615.052 609.694 618.937 C 605.619 620.687 605.815 618.497 604.147 614.4 C 584.955 567.259 583.766 565.507 584.348 564.016 C 584.787 562.89 585.15 563.217 596.321 558.462 C 609.801 552.725 609.859 552.921 623.308 547.117 C 628.294 544.965 629.07 544.915 629.926 545.782 C 630.707 546.572 633.146 553.901 646.712 586.342 C 652.249 599.582 652.086 599.953 651.588 601.091 C 651.071 602.271 637.044 607.244 627.864 611.411 Z" fill="#191919" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 519.204 629.244 C 523.925 640.425 523.618 640.525 528.361 651.702 C 529.764 655.007 528.54 655.231 525.443 656.562 C 515.715 660.741 515.594 660.394 505.937 664.72 C 501.697 666.619 496.205 668.646 486.821 672.649 C 485.179 673.35 485.138 673.811 483.483 673.131 C 482.747 672.829 482.949 672.583 477.11 658.233 C 472.805 647.655 472.732 647.713 468.506 637.132 C 465.516 629.646 465.318 629.743 462.353 622.251 C 462.302 622.125 460.931 619.08 461.318 617.914 C 461.718 616.709 462.6 617.033 474.455 611.898 C 483.955 607.783 483.983 607.894 493.544 603.885 C 498.021 602.008 504.869 598.549 506.012 599.037 C 507.701 599.757 507.194 600.274 510.437 607.752 C 513.976 615.913 515.204 619.795 519.204 629.244 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 573.269 584.198 C 574.21 586.433 574.144 586.456 584.811 612.227 C 585.258 613.308 589.42 623.362 590.262 625.784 C 591.158 628.361 588.227 629.077 585.968 630.008 C 546.819 646.149 546.81 646.616 545.404 646.27 C 544.195 645.972 544.381 645.254 539.039 632.335 C 527.477 604.373 522.663 592.606 522.662 591.916 C 522.658 589.36 523.991 590.151 536.364 584.828 C 540.344 583.115 566.454 572.139 566.944 572.16 C 568.334 572.222 568.964 573.746 569.049 573.95 C 570.484 577.421 570.39 577.432 573.269 584.198 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1029.83 309.458 C 1038.19 306.904 1038.21 307.042 1046.53 304.398 C 1055.47 301.561 1056.01 301.707 1056.83 301.926 C 1057.89 302.207 1058.26 303.49 1059.97 307.93 C 1060.8 310.085 1060.68 310.123 1069.94 335.014 C 1071.14 338.24 1074.41 347.878 1076.88 354.09 C 1081.32 365.267 1080.85 365.43 1086.85 381.171 C 1090.33 390.272 1090.38 390.347 1090.1 391.137 C 1089.54 392.707 1087.92 392.866 1080.3 395.554 C 1077.84 396.421 1072.71 397.96 1063.38 401.08 C 1059.7 402.307 1059.83 400.649 1058.52 396.992 C 1055.07 387.313 1053.18 380.715 1050.21 373.086 C 1048.39 368.424 1044.36 355.363 1041.2 347.189 C 1039.37 342.45 1035.35 329.362 1032.21 321.285 C 1031.58 319.669 1028.59 311.212 1028.91 310.503 C 1029.09 310.077 1029.65 309.884 1029.83 309.458 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 693.91 525.575 C 694.296 526.559 694.22 526.57 694.603 527.547 C 694.676 527.734 694.674 527.718 695.569 529.863 C 697.637 535 698.914 537.454 699.247 538.094 C 700.435 541.442 700.484 541.4 701.804 544.709 L 702.495 546.69 C 705.561 554.241 713.306 571.421 713.389 572.764 C 713.5 574.554 712.098 575.09 699.943 579.942 C 697.954 580.736 697.992 580.773 675.225 590.199 C 671.228 591.853 668.347 593.904 667.016 590.836 C 666.47 589.577 666.558 589.547 660.45 574.987 C 658.853 571.18 656.601 564.939 653.585 558.144 C 652.96 556.738 653.019 556.724 646.381 540.305 C 645.449 538 644.762 537.047 648.032 535.744 C 654.759 533.063 671.582 525.858 678.346 523.153 C 680.245 522.394 689.046 518.471 689.589 518.46 C 691.124 518.428 691.953 520.648 692.05 520.908 C 693.326 524.326 693.407 524.307 693.91 525.575 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 636.337 521.133 C 634.891 517.68 622.055 485.046 621.167 482.612 C 619.014 476.712 616.723 473.07 617.74 471.552 C 618.042 471.101 619.657 470.404 619.836 470.327 C 629.096 466.331 629.203 466.29 630.029 465.968 C 635.856 463.697 654.963 455.479 660.353 453.393 C 663.5 452.174 663.672 454.211 665.1 457.833 C 666.419 461.179 680.418 496.687 681.538 499.672 C 683.542 505.014 685.554 507.111 681.814 508.722 C 680.446 509.311 669.662 513.955 664.663 515.979 C 643.975 524.358 644.078 524.589 642.262 525.273 C 640.503 525.937 640.491 526.599 638.768 525.841 C 637.84 525.433 636.724 522.084 636.337 521.133 Z" fill="#191919" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 465.774 602.525 C 464.96 602.884 456.623 606.562 455.439 606.6 C 453.13 606.674 453.401 604.969 448.842 594.097 C 447.904 591.86 448.003 591.823 437.624 565.934 C 437.263 565.035 434.207 557.412 433.276 554.643 C 432.305 551.759 434.549 551.506 439.724 549.249 C 453.509 543.237 454.705 543.287 463.445 539.267 C 465.716 538.223 476.281 533.913 476.904 533.797 C 478.49 533.502 479.269 535.26 479.365 535.478 C 480.133 537.21 489.098 560.468 494.666 573.971 C 496.476 578.36 498.699 584.36 499.036 585.269 C 500.314 588.717 498.602 588.652 492.733 591.121 C 490.575 592.029 490.6 592.053 465.774 602.525 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 546.221 522.274 C 547.169 524.597 547.016 524.642 557.809 551.414 C 561.04 559.428 561.027 559.608 560.972 560.365 C 560.857 561.961 559.684 561.978 551.015 565.725 C 548.605 566.767 548.587 566.719 520.752 578.427 C 517.654 579.731 515.848 580.547 514.847 578.561 C 514.484 577.843 505.081 554.046 503.69 550.318 C 503.041 548.579 502.917 548.635 495.182 528.732 C 494.547 527.097 494.103 527.062 494.746 525.425 C 495.034 524.691 495.251 524.855 503.91 521.111 C 504.219 520.978 531.833 509.612 534.262 508.612 C 536.248 507.794 538.444 506.641 539.983 507.331 C 540.906 507.744 540.43 508.143 546.221 522.274 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 564.225 521.154 C 564.027 520.674 562.08 515.968 561.763 515.155 C 561.309 513.989 556.233 500.975 556.116 500.57 C 556.052 500.348 555.557 498.639 557.076 497.855 C 559.364 496.675 569.387 492.573 570.465 492.132 C 591.117 483.68 591.051 483.53 592.86 482.828 C 596.517 481.409 600.445 479.196 601.734 480.517 C 602.152 480.945 602.745 482.558 602.813 482.743 C 604.761 488.044 612.195 506.402 612.663 507.626 C 621.849 531.677 622.689 531.493 622.469 533.416 C 622.272 535.141 619.559 535.704 614.245 537.979 C 591.598 547.675 591.526 547.459 589.564 548.315 C 580.203 552.4 578.303 553.276 577.072 552.463 C 575.878 551.674 569.477 533.986 564.225 521.154 Z" fill="#191919" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 493.509 138.116 C 508.464 132.867 542.042 120.219 542.974 120.155 C 544.724 120.036 545.188 122.637 546.179 125.517 C 547.198 128.48 547.168 128.486 558.787 162.598 C 560.104 166.465 561.294 168.165 558.68 169.287 C 556.973 170.019 556.949 169.953 537.242 178.175 C 536.162 178.625 536.157 178.566 523.688 183.695 C 518.08 186.002 510.638 189.513 509.214 189.375 C 507.713 189.23 507.673 187.777 504.765 179.481 C 504.065 177.484 496.98 154.443 496.141 153.28 C 495.968 153.039 495.758 152.827 495.585 152.587 C 495.481 151.781 496.511 152.18 496.405 151.361 C 496.31 150.621 495.498 151.311 495.325 150.572 C 495.321 150.555 496.056 149.478 495.624 147.997 C 493.482 140.634 493.075 140.764 493.018 140.101 C 492.984 139.716 493.323 139.359 493.29 138.975 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 474.965 485.918 C 471.939 478.634 472.306 478.504 467.242 465.597 C 465.833 462.006 466.08 461.456 467.923 460.39 C 469.097 459.71 477.282 456.36 478.102 456.024 C 506.973 444.205 506.828 443.903 509.407 443.069 C 512.397 442.102 512.738 444.487 513.602 446.81 C 521.717 468.63 521.876 468.567 522.576 470.466 C 525.912 479.513 525.899 479.49 529.376 488.469 C 531.733 494.555 532.771 495.933 529.671 497.158 C 514.889 503 515.04 503.31 500.27 509.212 C 487.528 514.304 487.295 514.972 486.05 513.984 C 484.913 513.082 479.056 495.981 474.965 485.918 Z" fill="#191919" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 590.95 413.854 C 589.638 410.403 589.085 409.199 589.222 408.339 C 589.37 407.412 589.456 406.869 599.62 402.894 C 607.013 400.002 622.314 393.324 626.658 391.673 C 633.19 389.19 633.198 388.749 634.496 389.183 C 635.52 389.525 635.275 389.893 644.493 414.053 C 653.612 437.953 653.754 437.885 654.427 440.003 C 655.221 442.505 653.258 443.012 650.144 444.209 C 643.834 446.633 634.512 450.861 624.461 454.862 C 610.595 460.381 610.225 461.592 608.719 460.048 C 608.039 459.35 603.181 445.395 600.928 439.81 C 595.722 426.904 596.207 426.731 590.95 413.854 Z" fill="#191919" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 529.063 439.732 C 528.722 438.848 527.21 435.845 527.978 434.622 C 528.287 434.131 528.352 434.026 534.463 431.391 C 544.332 427.135 544.414 427.383 557.812 421.682 C 558.891 421.223 570.203 416.409 571.378 416.138 C 573.451 415.659 573.85 416.698 575.453 420.941 C 584.03 443.646 584.089 443.598 584.803 445.582 C 591.916 465.347 592.367 465.158 592.927 466.894 C 593.713 469.333 591.801 469.952 589.241 470.994 C 567.681 479.769 567.759 479.935 565.882 480.69 C 554.102 485.43 550.867 487.041 550.06 487.317 C 549.835 487.394 547.814 488.084 547.12 486.886 C 546.273 485.422 540.187 468.596 538.642 464.723 C 533.679 452.276 534.043 452.163 529.063 439.732 Z" fill="#191919" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 430.849 539.425 C 428.537 540.435 425.057 542.688 423.941 540.101 C 421.62 534.719 416.292 519.772 411.769 508.494 C 410.86 506.227 408.092 498.723 405.527 491.841 C 405.457 491.653 404.772 489.816 404.772 489.45 C 404.769 487.549 407.751 486.95 410.246 485.735 C 412.278 484.746 412.406 485.049 436.292 474.81 C 437.268 474.392 447.552 469.984 448.608 469.866 C 450.799 469.62 451.094 471.231 452.032 473.696 C 454.727 480.776 454.57 480.819 468.802 517.654 C 470.229 521.348 471.349 522.504 467.709 524.088 C 466.191 524.749 466.146 524.574 448.615 532.085 C 445.129 533.579 435.278 537.447 430.849 539.425 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 501.988 378.96 C 499.685 372.703 498.69 371.15 500.258 369.831 C 500.845 369.338 507.576 366.644 508.22 366.386 C 518.207 362.388 527.755 358.08 534.294 355.557 C 543.585 351.972 543.93 350.881 545.238 352.316 C 546.334 353.519 551.787 372.294 554.308 378.041 C 557.18 384.588 557.056 384.623 559.38 391.367 C 563.358 402.913 564.007 403.82 563.437 404.949 C 562.923 405.969 562.601 405.682 520.809 423.185 C 519.573 423.703 519.519 423.92 518.284 423.362 C 517.082 422.819 515.715 417.145 512.56 408.488 C 502.68 381.375 502.867 381.31 501.988 378.96 Z" fill="#191919" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 385.169 450.207 C 382.861 444.022 382.923 444.021 380.774 437.777 C 376.629 425.739 375.563 425.144 377.463 423.755 C 378.18 423.23 385.493 420.236 386.791 419.738 C 392.725 417.462 405.117 411.912 413.832 408.522 C 420.628 405.879 420.621 405.506 421.789 405.857 C 422.126 405.958 422.461 405.85 424.578 411.92 C 433.961 438.833 434.175 438.754 434.934 441.114 C 439.879 456.491 442.979 458.225 438.472 460.007 C 435.267 461.274 409.251 472.208 406.816 473.189 C 396.951 477.163 397.005 477.633 395.668 477.342 C 393.941 476.965 392.528 469.949 385.169 450.207 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 624.684 817.418 C 629.404 828.599 629.098 828.699 633.841 839.876 C 635.244 843.181 634.019 843.405 630.922 844.736 C 621.194 848.915 621.073 848.568 611.416 852.894 C 607.177 854.793 601.685 856.821 592.301 860.823 C 590.658 861.524 590.618 861.985 588.963 861.305 C 588.226 861.003 588.429 860.758 582.59 846.408 C 578.285 835.829 578.211 835.888 573.985 825.306 C 570.996 817.821 570.798 817.917 567.832 810.426 C 567.782 810.299 566.411 807.254 566.798 806.089 C 567.198 804.883 568.08 805.207 579.934 800.072 C 589.435 795.957 589.462 796.068 599.024 792.059 C 603.501 790.182 610.349 786.724 611.492 787.211 C 613.181 787.931 612.673 788.448 615.917 795.927 C 619.456 804.087 620.684 807.969 624.684 817.418 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 662.703 831.185 C 661.89 831.544 653.553 835.222 652.368 835.26 C 650.06 835.334 650.331 833.629 645.771 822.757 C 644.834 820.52 644.933 820.483 634.554 794.594 C 634.193 793.695 631.137 786.072 630.205 783.303 C 629.235 780.419 631.479 780.166 636.654 777.909 C 650.439 771.897 651.634 771.947 660.375 767.927 C 662.646 766.883 673.211 762.572 673.834 762.457 C 675.42 762.162 676.199 763.92 676.295 764.138 C 677.063 765.87 686.028 789.128 691.596 802.631 C 693.406 807.02 695.629 813.02 695.966 813.929 C 697.244 817.377 695.532 817.312 689.663 819.781 C 687.505 820.689 687.53 820.713 662.703 831.185 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 545.854 800.95 C 543.543 801.96 540.063 804.213 538.947 801.626 C 536.625 796.244 531.298 781.297 526.775 770.019 C 525.866 767.752 523.098 760.248 520.533 753.365 C 520.462 753.178 519.778 751.341 519.777 750.975 C 519.775 749.074 522.757 748.475 525.252 747.26 C 527.284 746.271 527.411 746.574 551.298 736.335 C 552.274 735.917 562.558 731.509 563.614 731.39 C 565.804 731.145 566.099 732.756 567.037 735.22 C 569.733 742.301 569.576 742.344 583.808 779.179 C 585.235 782.872 586.355 784.029 582.715 785.613 C 581.196 786.274 581.152 786.098 563.621 793.61 C 560.135 795.103 550.284 798.972 545.854 800.95 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 667.672 911.095 C 665.361 912.105 661.881 914.358 660.765 911.771 C 658.443 906.389 653.116 891.442 648.593 880.164 C 647.684 877.897 644.916 870.393 642.351 863.511 C 642.28 863.323 641.596 861.486 641.595 861.12 C 641.593 859.219 644.575 858.62 647.07 857.405 C 649.102 856.416 649.229 856.719 673.116 846.48 C 674.092 846.062 684.375 841.654 685.432 841.535 C 687.622 841.29 687.917 842.901 688.855 845.366 C 691.551 852.446 691.394 852.489 705.626 889.324 C 707.053 893.017 708.173 894.174 704.533 895.758 C 703.014 896.419 702.97 896.244 685.439 903.755 C 681.953 905.248 672.102 909.117 667.672 911.095 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 611.238 772.791 C 608.927 773.802 605.447 776.054 604.331 773.467 C 602.009 768.086 596.682 753.138 592.159 741.86 C 591.25 739.593 588.482 732.09 585.916 725.207 C 585.846 725.019 585.162 723.183 585.161 722.816 C 585.159 720.916 588.141 720.316 590.636 719.102 C 592.668 718.113 592.795 718.415 616.682 708.177 C 617.658 707.758 627.941 703.351 628.998 703.232 C 631.188 702.986 631.483 704.598 632.421 707.062 C 635.117 714.143 634.96 714.185 649.192 751.02 C 650.619 754.714 651.739 755.87 648.099 757.455 C 646.58 758.116 646.536 757.94 629.005 765.452 C 625.519 766.945 615.668 770.813 611.238 772.791 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 670.776 749.572 C 668.465 750.582 664.984 752.835 663.869 750.248 C 661.547 744.866 656.22 729.919 651.697 718.64 C 650.788 716.374 648.02 708.87 645.454 701.987 C 645.384 701.799 644.7 699.963 644.699 699.597 C 644.697 697.696 647.678 697.097 650.174 695.882 C 652.206 694.893 652.333 695.195 676.22 684.957 C 677.196 684.539 687.479 680.131 688.536 680.012 C 690.726 679.766 691.021 681.378 691.959 683.842 C 694.655 690.923 694.498 690.966 708.729 727.801 C 710.157 731.494 711.277 732.651 707.637 734.235 C 706.118 734.896 706.074 734.72 688.542 742.232 C 685.057 743.725 675.206 747.594 670.776 749.572 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 500.175 711.731 C 497.867 705.547 497.929 705.545 495.779 699.302 C 491.635 687.264 490.569 686.669 492.468 685.279 C 493.186 684.755 500.499 681.761 501.797 681.263 C 507.731 678.987 520.122 673.437 528.838 670.047 C 535.633 667.404 535.626 667.031 536.794 667.382 C 537.132 667.483 537.467 667.374 539.583 673.444 C 548.966 700.358 549.181 700.279 549.939 702.638 C 554.884 718.015 557.985 719.75 553.478 721.532 C 550.273 722.798 524.257 733.733 521.822 734.714 C 511.957 738.688 512.011 739.158 510.674 738.867 C 508.947 738.49 507.534 731.474 500.175 711.731 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 580.904 233.767 C 578.995 234.629 578.928 234.469 556.929 244.291 C 552.689 246.184 546.521 248.477 538.887 252.12 C 535.421 253.774 535.119 252.508 534.317 250.46 C 531.026 242.056 531.318 241.959 525.623 227.817 C 525.079 226.465 525.226 226.424 519.177 210.786 C 518.16 208.154 518.786 208.005 517.903 205.323 C 517.481 204.043 516.662 203.866 517.677 202.984 C 517.802 202.875 541.622 192.91 543.706 192.038 C 552.762 188.249 562.759 183.735 563.868 183.714 C 564.013 183.711 565.048 183.691 565.572 184.334 C 565.714 184.508 577.187 212.038 578.192 214.45 C 584.532 229.663 585.749 230.552 584.062 232.233 C 583.751 232.543 581.162 233.656 580.904 233.767 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 493.272 405.163 C 497.336 416.385 497.124 416.437 501.238 427.655 C 502.166 430.185 503.324 431.64 499.391 433.25 C 479.085 441.564 458.544 450.5 457.672 450.463 C 455.634 450.377 456.303 449.267 446.537 422.977 C 442.567 412.288 442.869 412.197 438.883 401.499 C 437.633 398.143 437.424 397.268 440.743 395.874 C 468.863 384.065 468.963 384.334 480.341 379.419 C 484.213 377.746 484.14 379.728 485.612 383.69 C 487.418 388.549 489.5 395.399 493.272 405.163 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 959.428 632.87 C 959.931 633.035 959.948 632.845 960.46 633.013 C 960.544 633.04 961.167 633.244 961.436 633.527 C 961.764 633.871 961.806 634.427 962.135 634.772 C 962.689 636.909 964.337 641.969 964.539 642.592 C 964.948 643.955 965.193 643.873 970.032 659.52 C 970.479 661.244 970.506 661.221 971.085 662.915 C 973.45 671.824 972.873 668.054 972.378 670.354 C 972.138 671.474 970.833 672.136 967.95 673.883 C 966.469 674.781 925.219 693.023 923.166 689.933 C 921.659 687.663 921.011 687.253 918.985 683.977 C 916.081 679.277 916.296 679.163 916.043 678.757 C 915.7 678.206 911.797 671.946 911.751 671.88 C 911.059 670.873 905.996 661.981 905.92 661.862 C 904.668 659.892 904.628 659.938 903.378 657.975 C 902.07 655.923 902.127 655.4 904.154 654.044 C 908.048 652.19 908.047 652.25 912.085 650.743 C 935.712 641.925 935.648 641.765 937.704 641.002 C 953.554 635.111 953.401 634.747 959.428 632.87 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 618.125 357.529 C 618.719 358.855 620.414 362.643 624.444 374.56 C 625.168 376.699 625.766 377.995 623.213 379.12 C 621.33 379.95 621.293 379.857 599.486 389.061 C 592.761 391.9 590.35 392.665 582.674 396.002 C 578.86 397.66 579.017 395.597 577.658 391.671 C 576.489 388.293 576.509 388.3 575.567 384.864 L 575.068 383.509 C 573.901 380.179 573.63 380.131 569.413 367.756 C 562.151 346.44 559.814 344.425 562.397 343.065 C 564.588 341.91 577.193 337.14 584.763 333.691 C 590.164 331.23 593.481 330.325 602.937 326.182 C 605.482 325.067 606.304 324.766 607.224 327.394 C 607.667 328.657 607.78 328.612 612.91 343.129 C 613.385 344.471 614.74 348.892 618.125 357.529 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1153.46 283.801 C 1156.61 283.033 1156.87 283.024 1157.87 284.302 C 1158.67 285.312 1158.43 285.436 1159.1 286.53 C 1160.8 289.309 1160.56 289.422 1161.47 290.968 C 1162.9 293.385 1162.76 293.444 1164.27 295.8 C 1165.32 297.451 1166.15 298.99 1166.31 299.273 C 1175.08 315.428 1175.59 315.12 1184.07 331.449 C 1187.72 338.468 1189.78 339.912 1185.83 341.757 C 1176.62 346.051 1162.09 352.33 1160.02 353.226 C 1154 355.828 1152.52 357.639 1150.8 354.318 C 1140.12 333.756 1140.32 333.658 1139.35 331.893 C 1135.22 324.394 1131.55 316.218 1127.61 309.039 C 1127.51 308.859 1120.9 295.681 1120.88 295.594 C 1120.56 294.384 1121.65 293.715 1121.79 293.624 C 1123.29 292.702 1150.92 284.552 1153.46 283.801 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 710.238 323.216 C 706.702 324.684 672.019 338.143 670.673 338.593 C 667.221 339.749 667.019 337.647 664.634 333.183 C 664.253 332.471 663.255 330.735 663.133 330.524 C 660.875 326.594 658.415 321.502 658.03 320.705 C 656.463 317.461 657.729 317.263 660.759 315.284 C 667.972 310.575 668.245 311.063 675.487 306.386 C 678.045 304.734 690.966 299.378 691.927 298.872 C 693.089 298.259 702.978 293.369 704.457 293.524 C 705.154 293.598 705.72 293.657 709.773 300.49 C 713.128 306.147 712.971 306.217 716.287 311.883 C 719.575 317.5 719.566 317.804 719.55 318.386 C 719.493 320.42 718.486 319.786 710.238 323.216 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1475.82 717.05 C 1478.47 714.608 1478.47 714.625 1481.17 712.237 C 1488.36 705.886 1488.31 705.846 1488.95 705.315 C 1491.4 703.292 1492.65 705.852 1501.82 714.27 C 1503.35 715.683 1508.83 720.753 1509.44 721.318 C 1528.48 738.959 1531.44 741.771 1533.34 743.57 C 1542.52 752.293 1545.09 753.047 1542.49 755.517 C 1540.29 757.597 1533.73 763.304 1533.5 763.513 C 1521.41 774.506 1510.25 784.257 1507.99 786.323 C 1498.2 795.256 1498.09 795.117 1497.24 795.899 C 1492.83 799.977 1492.74 799.827 1488.3 803.856 C 1485.36 806.523 1484.63 808.051 1482.36 805.828 C 1466.63 790.468 1466.6 790.511 1465.24 789.17 C 1438.61 762.949 1438.51 763.062 1436.22 760.759 C 1434.32 758.853 1431.81 757.265 1433.04 755.262 C 1433.39 754.693 1449.05 740.93 1453.21 737.226 C 1455.02 735.614 1469.41 722.8 1475.82 717.05 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1391.71 685.786 C 1392.42 685.723 1392.39 685.943 1393.1 685.88 C 1393.2 685.871 1393.56 685.839 1394.37 685.55 C 1394.75 685.414 1395.25 685.234 1398.32 682.409 C 1399.19 681.601 1404.26 677.039 1404.78 676.573 C 1413.4 668.82 1413.3 668.746 1422 661.069 C 1427.98 655.796 1427.77 655.588 1433.79 650.386 C 1437.89 646.845 1439.17 645.414 1440.63 645.597 C 1441.05 645.649 1445.41 649.953 1455.33 659.066 C 1456.22 659.886 1461.44 664.682 1466.37 669.441 C 1468.88 671.864 1468.98 671.717 1472.27 674.778 C 1490.01 691.273 1490.09 691.309 1490.19 691.916 C 1490.44 693.494 1489.73 693.601 1482.52 700.273 C 1467.62 714.076 1462.56 718.614 1460.81 720.188 C 1452.62 727.536 1447.23 732.658 1443.07 736.279 C 1437.88 740.795 1434.08 745.087 1432.64 745.23 C 1430.96 745.398 1430.95 744.658 1414.35 728.213 C 1412.72 726.599 1401.03 715.014 1394.09 707.94 C 1383.39 697.048 1381.55 696.253 1382.08 694.273 C 1382.27 693.541 1382.46 693.641 1388.95 687.761 C 1390.21 686.613 1390.23 686.646 1391.71 685.786 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1323.75 744.009 C 1323.94 743.841 1366.38 706.145 1366.64 706.006 C 1366.94 705.843 1368.18 705.835 1368.45 705.981 C 1369 706.277 1368.93 706.376 1374.18 711.337 C 1383.18 719.844 1383.19 719.817 1388.03 724.483 C 1405.48 741.274 1405.58 741.127 1407.08 742.6 C 1416.4 751.756 1418.03 752.302 1417.92 753.968 C 1417.83 755.295 1417.31 755.027 1411.27 760.551 C 1407.8 763.724 1391.46 778.133 1377.88 790.274 C 1375.19 792.682 1375.15 792.619 1372.46 795.004 C 1371.55 795.81 1362.93 803.909 1361.78 804.181 C 1359.65 804.685 1354.21 797.73 1351.3 795.015 C 1346.92 790.931 1347.05 790.816 1342.81 786.605 C 1339.69 783.507 1339.61 783.608 1336.63 780.397 C 1332.83 776.303 1332.47 776.695 1328.66 772.616 C 1324.58 768.246 1324.46 768.384 1320.25 764.125 C 1312.34 756.12 1312.19 756.086 1312.21 755.121 C 1312.24 753.881 1313.97 752.699 1323.75 744.009 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1378.76 684.221 C 1374.26 680.021 1350.24 656.423 1341.59 648.211 C 1341 647.647 1334.7 641.667 1334.3 641.026 C 1333.26 639.363 1334.74 638.264 1339.08 634.304 C 1343.08 630.655 1388.49 589.21 1389.14 588.757 C 1391.63 587.013 1393.44 590.128 1397.34 593.55 C 1398.59 594.645 1399.63 595.56 1412.66 607.529 C 1414.73 609.426 1436.82 629.723 1438.43 631.31 C 1440.83 633.672 1439.51 634.291 1436.46 637.159 C 1430.97 642.33 1430.82 642.149 1428.71 644.056 C 1428.51 644.237 1428.42 644.574 1428.16 644.654 C 1427.51 644.857 1426.8 644.722 1426.13 644.859 C 1424.37 645.221 1408.17 660.639 1400.97 666.898 C 1400.72 667.109 1398.02 669.46 1397.93 669.544 C 1397.76 669.711 1397.69 669.966 1397.51 670.133 C 1397.15 670.478 1393.57 673.53 1393.23 673.823 C 1392.79 674.197 1389.59 676.922 1387.84 678.605 C 1387.67 678.772 1387.58 679.013 1387.41 679.178 C 1387.03 679.535 1386.98 679.471 1382.45 683.399 C 1382.27 683.556 1381.11 684.556 1379.7 684.581 C 1379.36 684.587 1379.1 684.216 1378.76 684.221 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1341.85 680.58 C 1349.28 687.668 1356.07 693.111 1356.3 694.317 C 1356.71 696.5 1355.58 696.215 1339.19 710.999 C 1337.72 712.333 1318.87 729.056 1317.11 730.625 C 1316.51 731.158 1316.52 731.137 1315.91 731.674 C 1300.9 744.876 1300.99 745.168 1300 745.242 C 1298.47 745.357 1297.16 743.617 1291.87 738.467 C 1260.6 708.023 1255.04 702.975 1254.8 702.271 C 1254.21 700.505 1255.54 699.613 1258.03 697.377 C 1262.77 693.122 1262.82 693.204 1267.53 688.923 C 1268.36 688.173 1278.55 679.176 1279.51 678.329 C 1287.89 670.939 1287.83 670.893 1291.37 667.75 C 1294.07 665.361 1294.12 665.444 1296.79 663.005 C 1302.11 658.134 1302.23 658.298 1307.59 653.474 C 1310.42 650.924 1311.11 652.424 1314.82 655.811 C 1335.32 674.523 1339.7 678.587 1341.85 680.58 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1368.43 591.61 C 1366.98 592.972 1338.95 618.466 1337.21 620.096 C 1336.42 620.839 1336.38 620.785 1327.2 629.238 C 1324.72 631.525 1324.09 632.149 1321.61 629.874 C 1318.39 626.92 1318.54 626.79 1315.31 623.862 C 1305.25 614.749 1305.4 614.626 1295.42 605.43 C 1294.72 604.787 1287.1 597.764 1286.81 597.28 C 1286.63 596.982 1286.64 595.753 1286.82 595.461 C 1287.28 594.721 1341.49 547.914 1341.57 547.86 C 1344.04 546.318 1344.49 547.368 1347.56 549.842 C 1350.37 552.118 1350.41 552.035 1353.21 554.316 C 1359.77 559.677 1381.45 577.062 1381.73 577.507 C 1382.85 579.267 1380.85 580.148 1368.43 591.61 Z" fill="#181818" fill-rule="evenodd" />
+        <path class="bloque-manzana" d="M 1216.34 663.095 C 1214.29 660.957 1212.42 659.319 1212.33 658.265 C 1212.28 657.641 1212.21 656.813 1217.73 652.597 C 1220.84 650.221 1230.46 642.323 1232.64 640.558 C 1256.69 621.131 1256.63 621.066 1258.74 619.397 C 1262.63 616.315 1263.36 614.736 1267.07 618.049 C 1270.62 621.228 1270.68 621.122 1274.29 624.263 C 1287.62 635.862 1287.66 635.775 1288.8 636.808 C 1292.94 640.578 1292.92 640.563 1297.31 644.079 C 1297.51 644.237 1299.34 645.709 1298.67 646.936 C 1298.39 647.464 1287.4 657.332 1286.4 658.223 C 1283.89 660.482 1283.94 660.531 1255.06 686.576 C 1248.54 692.454 1248.58 692.487 1247.99 692.974 C 1245.65 694.92 1244.87 693.672 1243.49 692.259 C 1239.27 687.945 1239.39 687.731 1237.55 685.787 C 1217.94 664.985 1218.06 664.886 1216.34 663.095 Z" fill="#181818" fill-rule="evenodd" />
+
+
+        </g>
+
+        <!-- Capa 3: Línea de costa marítima -->
+        <g id="capa-costa" class="capa-desenfocable">
+        <path class="linea-costa" d="M 1134.03 147.817 C 1133.84 154.72 1133.94 182.153 1133.96 182.253 C 1134 182.522 1134.13 182.482 1134.97 185.509 C 1135.06 185.853 1134.98 186.242 1135.13 186.567 C 1135.2 186.714 1135.48 186.667 1135.57 186.804 C 1136.14 187.708 1137.48 193.081 1142.82 206.527 C 1144.76 211.417 1144.72 211.444 1147.66 215.809 C 1150.61 220.182 1165.02 240.428 1165.24 240.792 C 1166.25 242.537 1166.47 242.373 1167.48 244.108 C 1168.39 245.685 1171.54 249.431 1172.96 251.955 C 1175.67 256.794 1179.3 261.786 1185.34 271.862 C 1185.97 272.92 1186.13 272.815 1193.56 284.914 C 1195.36 287.838 1201.01 296.07 1202.41 299.418 C 1203.49 302.02 1203.77 301.895 1217.4 331.33 C 1222.61 342.565 1225.73 345.653 1229.35 352.512 C 1230.08 353.885 1230.18 353.81 1239.34 369.183 C 1241.07 372.077 1243.23 375.431 1243.57 375.968 C 1244.07 376.738 1243.8 376.886 1249.39 385.817 C 1249.42 385.875 1255.8 394.742 1256.36 395.634 C 1257.12 396.845 1261.35 402.188 1262.04 403.343 C 1263.55 405.878 1272.03 416.989 1273.2 418.885 C 1274.9 421.632 1279.96 427.906 1281.15 429.895 C 1283.75 434.203 1286.46 435.554 1288.87 437.805 C 1290.61 439.422 1290.52 439.494 1292.48 440.87 C 1293.21 441.384 1296.9 443.977 1301.28 447.707 C 1303.02 449.192 1306.54 451.744 1306.94 452.09 C 1307.55 452.608 1307.51 452.622 1308.16 453.086 C 1308.52 453.345 1308.43 453.436 1312.42 456.7 C 1315.6 459.306 1315.7 459.146 1318.04 461.129 C 1322.14 464.602 1329.71 470.476 1335.99 475.579 C 1338.36 477.497 1342.47 479.845 1343.99 481 C 1345.1 481.854 1384.67 507.757 1385.71 508.547 C 1389.93 511.737 1390.26 511.239 1394.58 514.292 C 1402.66 520.011 1407.27 522.537 1409.33 524.081 C 1411.42 525.656 1420.19 531.273 1420.83 531.511 C 1421.12 531.618 1421.45 531.606 1421.74 531.714 C 1421.96 532.142 1422.38 532.452 1422.6 532.881 C 1422.82 533.297 1422.85 533.804 1422.86 533.887 C 1422.9 534.418 1422.71 534.39 1422.75 534.933 C 1422.51 534.902 1422.39 535.377 1422.15 535.346 C 1421.38 535.249 1417.75 532.692 1416.11 531.779 C 1415.15 531.249 1415.33 531.025 1404.73 524.219 C 1397.93 519.857 1398.09 519.658 1391.26 515.309 C 1382.57 509.77 1382.76 509.502 1382 508.992 C 1381.24 508.483 1381.19 508.567 1372.32 502.855 C 1370.9 501.942 1366.46 498.724 1364.3 497.529 C 1362.3 496.424 1354.16 490.536 1350.81 488.651 C 1350.28 488.355 1342.96 483.349 1339.44 481.068 C 1332.01 476.254 1332.43 475.731 1328.02 472.377 C 1327.41 471.911 1322.1 467.862 1320.48 466.426 C 1319.89 465.896 1319.93 465.88 1319.28 465.414 C 1318.04 464.523 1309.74 457.858 1308.13 456.442 C 1305.44 454.069 1305.25 454.328 1302.52 451.988 C 1299.2 449.14 1299.06 449.331 1295.73 446.509 C 1295.12 445.996 1295.15 445.977 1294.49 445.537 C 1293.79 445.076 1282.27 435.655 1282.14 435.525 C 1281.34 434.714 1281.49 434.605 1273.72 424.041 C 1269.36 418.114 1267.55 415.233 1261.04 406.567 C 1260.85 406.308 1258.18 402.248 1255.91 399.275 C 1252.82 395.237 1252.88 395.212 1248.02 388.238 C 1243.89 382.314 1243.25 380.391 1239.17 373.717 C 1234.73 366.456 1234.73 366.487 1230.45 359.161 C 1230.1 358.57 1227.56 354.599 1224.19 348.934 C 1221.89 345.068 1222.06 344.987 1219.59 341.232 C 1217.63 338.244 1217.76 338.193 1212.56 327.049 C 1210.46 321.597 1208.09 319.387 1204.28 309.533 C 1202.75 305.587 1199.36 300.436 1198.92 299.462 C 1198.78 299.171 1198.72 298.837 1198.53 298.583 C 1198.4 298.41 1198.1 298.409 1197.97 298.237 C 1197.78 297.986 1197.8 297.613 1197.6 297.37 C 1197.36 297.081 1197.21 297.323 1196.97 297.04 C 1196.67 296.665 1196.93 296.557 1196.61 296.175 C 1196.57 296.023 1196.12 294.274 1196.12 294.274 C 1195.99 294.078 1195.6 294.174 1195.47 293.972 C 1194.94 293.103 1195.5 292.949 1195.02 292.059 C 1194.92 291.876 1194.7 291.781 1194.59 291.606 C 1194.07 290.803 1194.33 290.699 1193.82 289.898 C 1193.73 289.752 1193.66 289.82 1192.52 288.169 C 1191.97 287.361 1190.55 285.069 1190.38 284.797 C 1186.09 277.459 1186.07 277.502 1181.34 270.448 C 1181.15 270.167 1176.34 261.821 1173.15 257.37 C 1172.38 256.305 1171.25 253.95 1168.91 250.558 C 1167.5 248.52 1167.53 248.522 1166.09 246.506 C 1165.45 245.624 1162.18 241.067 1158.3 235.386 C 1157.76 234.592 1157.66 234.69 1151.36 225.558 C 1144.58 215.725 1143.77 216.163 1140.85 208.625 C 1140.54 207.84 1137.84 200.86 1136.71 198.948 C 1136.46 198.528 1136.09 198.186 1135.85 197.766 C 1133.97 187.754 1132.22 186.068 1132.06 181.197 C 1131.1 151.37 1131.16 150.681 1131.37 148.036 C 1131.49 146.456 1131.32 142.04 1131.62 141.549 C 1132.52 140.125 1133.48 141.248 1133.58 141.366 C 1134 141.852 1133.79 142.869 1134.03 147.817 Z" fill="#1F3940" fill-rule="evenodd" />
+
+
+        </g>
+
+        <!-- Capa 4: Patios de luz interiores blancos (32 patios exactos del PDF) -->
+        <g id="capa-patios" class="capa-desenfocable">
+        <path class="patio-manzana" d="M 875.128 161.873 C 876.185 161.727 893.432 158.937 897.621 158.321 C 910.278 156.459 910.295 156.256 911.224 156.53 C 912.9 157.024 913.104 161.556 914.193 167.078 C 914.655 169.418 918.428 188.543 919.724 196.369 C 921.799 208.893 922.605 209.07 921.411 211.115 C 921.075 211.689 920.905 211.519 911.075 214.281 C 908.824 214.914 890.363 220.101 882.866 221.928 C 877.064 223.342 868.36 226.271 867.047 225.937 C 865.48 225.539 865.154 220.531 865.065 219.925 C 864.492 216.011 861.471 199.573 856.364 168.088 C 855.707 164.04 858.758 164.732 863.825 163.832 C 864.729 163.672 871.345 162.496 875.128 161.873 Z" fill="#FEFEFE" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 972.854 466.074 C 981.216 463.076 986.535 461.563 988.746 460.808 C 993.683 459.121 994.399 458.845 995.715 459.545 C 996.478 459.951 996.26 460.17 1002.97 473.509 C 1010.41 488.301 1015.28 498.15 1015.28 498.171 C 1015.38 499.285 1014.56 499.849 1014.43 499.938 C 1013.83 500.355 1004.4 503.692 1003.52 504.003 C 978.474 512.869 978.517 512.919 976.331 513.66 C 959.583 519.333 959.549 519.719 958.457 519.291 C 957.328 518.849 954.497 511.877 953.36 509.572 C 950.568 503.911 950.51 503.959 947.791 498.277 C 938.73 479.34 937.843 478.97 939.109 477.676 C 940.16 476.602 962.592 469.662 972.854 466.074 Z" fill="#FEFEFE" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 1031.78 601.047 C 1024.35 604.171 1024.32 604.033 1016.85 607.085 C 1012.51 608.858 1011.14 610.348 1009.22 606.073 C 1006.69 600.449 988.694 563.453 988.612 562.258 C 988.511 560.802 989.818 560.271 990.002 560.196 C 991.69 559.511 991.697 559.563 1011.31 552.145 C 1021.41 548.324 1021.64 548.446 1022.46 548.888 C 1023.59 549.501 1026.74 557.525 1031.06 565.871 C 1033.06 569.731 1038.44 581.508 1040.28 584.917 C 1041.26 586.739 1044.28 592.934 1044.48 593.637 C 1045.22 596.377 1042.74 596.441 1036.02 599.291 C 1033.89 600.197 1033.91 600.183 1031.78 601.047 Z" fill="#FEFEFE" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 1121.6 510.765 C 1119.42 506.391 1119.4 506.419 1117.22 501.69 C 1112.48 491.378 1111.59 490.163 1110.66 488.089 C 1109.45 485.408 1086.91 438.466 1085.89 436.298 C 1083.97 432.255 1082.31 430.939 1085.91 429.344 C 1096.58 424.614 1097.29 424.84 1098.29 425.159 C 1098.51 425.231 1099.04 425.401 1100.06 427.506 C 1100.72 428.846 1107.81 443.434 1108.21 444.271 C 1111.88 452.036 1111.98 451.964 1115.69 459.691 C 1120.93 470.625 1122.91 474.417 1124.09 476.87 C 1140.56 511.104 1140.9 510.943 1142.13 514.009 C 1142.22 514.229 1142.93 516.018 1141.98 516.976 C 1141.84 517.115 1130.17 523.34 1128.75 523.271 C 1126.85 523.177 1127.35 522.3 1121.6 510.765 Z" fill="#FEFEFE" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 690.522 377.042 C 687.807 370.319 687.847 370.318 686.16 365.72 C 682.302 355.203 681.476 355.045 682.467 353.657 C 683.023 352.878 697.195 347.247 699.854 346.231 C 704.633 344.405 714.493 340.259 714.675 340.25 C 715.792 340.194 716.378 340.968 716.474 341.095 C 716.683 341.37 719.072 347.101 720.094 349.899 C 723.407 358.97 729.68 374.553 730.462 376.839 C 731.468 379.78 729.455 380.319 727.915 380.935 C 702.859 390.95 699.239 392.86 697.687 392.71 C 695.696 392.518 696.339 391.575 690.522 377.042 Z" fill="#FDFDFD" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 743.844 754.491 C 752.202 751.397 752.158 751.347 760.618 748.55 C 766.871 746.483 770.357 744.644 771.661 745.329 C 772.506 745.772 772.488 745.9 776.11 756.39 C 779.676 766.719 781.598 767.474 778.954 769.249 C 777.935 769.933 761.691 775.715 760.424 776.154 C 734.801 785.052 733.09 786.707 731.129 785.931 C 730.332 785.616 729.549 783.423 729.463 783.181 C 723.181 765.592 722.765 765.742 722.471 764.147 C 721.872 760.9 723.986 761.862 743.844 754.491 Z" fill="#FDFDFD" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 1169.81 824.423 C 1158.93 814.612 1158.93 814.635 1157.99 813.777 C 1154.74 810.815 1152.36 809.573 1152.77 807.71 C 1152.86 807.277 1152.93 806.989 1156.62 803.72 C 1165.59 795.788 1174.28 787.482 1178.4 783.775 C 1181.62 780.877 1182 780.134 1184.36 781.721 C 1184.4 781.751 1197.25 793.076 1201.59 797.123 C 1205.2 800.482 1207.48 801.134 1204.32 804.075 C 1196.23 811.585 1196.18 811.515 1195.49 812.151 C 1195.26 812.368 1179.36 827.058 1178.51 827.803 C 1175.61 830.326 1175.04 829.116 1172.18 826.541 C 1170.99 825.469 1171 825.486 1169.81 824.423 Z" fill="#FEFEFE" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 759.24 231.325 C 758.253 227.351 758.258 227.365 757.37 223.363 C 753.671 206.701 753.549 206.636 754.029 205.243 C 754.431 204.077 757.522 203.408 759.694 202.735 C 772.793 198.678 772.701 198.465 785.78 194.339 C 788.995 193.324 789.479 194.129 790.175 197.432 C 795.104 220.798 796.352 224.499 796.479 225.645 C 796.499 225.828 796.64 227.107 795.849 227.854 C 795.396 228.282 792.801 229.118 792.528 229.206 C 764.887 238.106 764.982 238.532 763.116 238.8 C 760.801 239.132 760.591 237.96 759.24 231.325 Z" fill="#FDFDFD" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 1098.55 886.343 C 1094.72 889.833 1094.14 890.129 1092.15 888.541 C 1090.61 887.309 1090.73 887.198 1073.73 872.122 C 1071.67 870.291 1071.17 869.628 1073.2 867.792 C 1074.42 866.691 1088.17 854.737 1089.47 853.604 C 1100.59 843.933 1101.08 842.405 1103.55 844.416 C 1104.74 845.388 1106.36 846.708 1117.97 857.119 C 1123.16 861.776 1124.17 862.357 1123.62 864.069 C 1123.35 864.928 1105.9 879.781 1098.55 886.343 Z" fill="#FEFEFE" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 1143.58 761.343 C 1141.3 763.416 1122.14 780.217 1122.1 780.244 C 1120.38 781.261 1118.28 778.94 1114.19 775.386 C 1110.87 772.497 1110.82 772.585 1107.51 769.665 C 1103.67 766.268 1102.33 765.715 1103.15 763.753 C 1103.46 763.016 1115.57 752.753 1131.19 738.824 C 1134.29 736.067 1134.92 737.598 1137.42 739.656 C 1142.5 743.83 1148.62 749.202 1149.58 750.046 C 1152.02 752.181 1153.14 752.867 1150.74 755.035 C 1150.18 755.547 1150.15 755.513 1143.58 761.343 Z" fill="#FEFEFE" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 751.795 692.003 C 755.073 698.075 756.518 699.921 755.094 701.29 C 754.313 702.041 754.191 701.853 743.56 706.474 C 734.59 710.373 733.697 711.603 732.287 709.101 C 731.196 707.165 731.153 706.6 724.155 693.454 C 719.254 684.248 719.529 684.117 716.983 679.574 C 715.141 676.288 716.819 676.102 720.216 674.497 C 724.638 672.407 736.037 667.344 736.884 667.141 C 738.184 666.829 738.832 667.473 738.952 667.593 C 739.765 668.401 748.169 685.1 751.795 692.003 Z" fill="#FEFEFE" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 662.939 654.8 C 663.938 656.716 665.845 659.347 663.693 660.526 C 662.812 661.009 662.756 660.864 652.261 665.741 C 643.841 669.655 643.319 669.463 642.546 669.177 C 641.22 668.689 639.458 663.656 637.028 659.313 C 636.457 658.294 636.513 658.273 630.539 646.232 C 628.745 642.616 628.628 642.693 626.849 639.08 C 625.533 636.406 627.448 635.946 630.029 634.853 C 640.833 630.278 647.041 627.084 647.968 627.202 C 649.139 627.352 649.601 628.155 649.682 628.296 C 649.931 628.73 656.961 642.715 657.592 643.969 C 660.23 649.218 662.517 653.931 662.939 654.8 Z" fill="#FEFEFE" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 716.459 637.611 C 705.855 642.285 705.896 642.764 704.306 642.468 C 702.775 642.183 702.436 639.799 698.935 633.422 C 698.062 631.833 698.295 631.723 688.741 613.192 C 687.878 611.519 687.402 611.414 688.324 609.771 C 688.715 609.073 691.411 608.295 702.15 603.458 C 708.931 600.404 709.94 599.354 711.628 602.327 C 712.219 603.369 714.069 607.309 714.274 607.745 C 714.772 608.806 719.088 616.844 721.067 621.237 C 722.454 624.315 726.424 631.414 726.239 632.401 C 725.998 633.693 723.406 634.56 721.063 635.589 C 720.694 635.751 716.461 637.61 716.459 637.611 Z" fill="#FEFEFE" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 689.553 549.17 C 691.1 552.097 692.358 555.423 695.892 562.864 C 697.927 567.148 695.684 567.094 692.087 568.719 C 690.912 569.25 690.886 569.137 677.352 575.242 C 676.232 575.747 676.276 576.004 675.053 575.848 C 674.432 575.769 674.04 575.719 670.938 569.185 C 666.398 559.621 666.674 559.513 662.042 549.989 C 661.841 549.574 659.861 545.503 659.83 544.669 C 659.778 543.219 660.467 542.705 662.793 541.661 C 678.211 534.735 680.697 533.439 681.646 533.809 C 683.017 534.345 683.628 536.211 685.943 541.389 C 686.223 542.016 688.248 546.548 689.553 549.17 Z" fill="#FEFEFE" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 626.92 573.737 C 627.579 575.075 630.341 580.682 634.727 590.674 C 635.987 593.544 634.972 593.791 632.115 595.071 C 624.754 598.368 624.672 598.142 617.364 601.584 C 615.456 602.482 613.2 604.057 611.801 600.994 C 609.524 596.011 606.05 589.054 603.958 584.08 C 602.317 580.178 598.359 572.627 598.283 571.665 C 598.126 569.69 600.434 569.094 600.523 569.05 C 602.76 567.945 612.297 563.662 613.324 563.2 C 618.987 560.657 619.261 560.694 619.811 560.769 C 621.663 561.021 621.689 562.948 626.083 571.877 C 626.155 572.024 626.145 572.015 626.92 573.737 Z" fill="#FEFEFE" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 599.934 511.802 C 603.988 520.504 605.705 525.131 605.715 525.439 C 605.776 527.315 604.692 527.512 600.468 529.488 C 599.232 530.066 586.559 535.994 584.845 536.321 C 583.404 536.596 582.523 534.838 582.417 534.627 C 581.388 532.573 581.605 532.504 570.82 508.356 C 568.972 504.218 570.854 504.105 574.97 502.241 C 576.413 501.589 582.492 499.032 588.384 496.396 C 588.639 496.281 591.09 495.185 591.672 495.209 C 593.436 495.284 592.947 496.123 598.1 507.61 C 599.038 509.699 598.98 509.702 599.934 511.802 Z" fill="#FEFEFE" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 662.47 487.265 C 666.852 496.829 667.509 498.18 667.077 499.564 C 666.837 500.331 666.75 500.43 658.167 504.207 C 649.604 507.975 645.618 510.36 644.473 508.709 C 643.392 507.149 643.785 506.962 634.771 487.061 C 631.318 479.44 631.416 479.116 631.627 478.411 C 632.03 477.069 632.522 477.419 650.339 469.435 C 652.482 468.475 653.863 467.84 654.993 470.173 C 655.869 471.979 660.425 482.827 662.47 487.265 Z" fill="#FEFEFE" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 933.197 412.65 C 931.993 409.681 930.065 405.844 931.364 404.62 C 932.233 403.802 946.507 399.548 949.276 398.687 C 957.008 396.284 957.603 395.658 958.865 397.53 C 959.553 398.55 963.166 408.178 963.914 410.272 C 966.463 417.405 968.662 421.383 967.423 422.662 C 966.748 423.358 966.672 423.253 955.95 426.575 C 942.583 430.718 942.64 431.105 941.433 430.98 C 939.464 430.776 939.886 429.672 933.197 412.65 Z" fill="#FDFDFD" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 573.358 452.427 C 573.826 453.545 576.511 459.592 576.492 460.222 C 576.451 461.597 574.954 462.267 574.753 462.357 C 573.944 462.72 568.834 465.009 564.594 466.793 C 555.559 470.594 555.165 471.993 553.522 470.206 C 552.877 469.505 550.177 461.774 546.88 454.435 C 545.803 452.037 541.905 442.677 541.858 442.2 C 541.656 440.165 542.33 440.328 544.177 439.449 C 548.778 437.258 553.343 435.599 560.289 432.314 C 563.221 430.928 564.15 430.332 565.441 433.3 C 567.431 437.872 568.763 441.803 573.358 452.427 Z" fill="#FEFEFE" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 627.278 407.442 C 628.035 409.228 627.998 409.24 636.603 429.823 C 637.793 432.668 637.864 432.64 637.916 433.141 C 638.128 435.195 636.064 435.705 634.409 436.4 C 622.01 441.603 617.27 444.754 615.596 443.948 C 614.745 443.538 614.761 443.412 610.701 433.201 C 610.195 431.926 610.132 431.98 604.084 417.379 C 603.182 415.2 602.717 413.984 605.191 412.885 C 606.713 412.209 623.929 404.56 624.263 404.535 C 625.92 404.409 626.335 405.398 627.278 407.442 Z" fill="#FEFEFE" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 520.313 396.159 C 519.769 394.809 515.246 383.579 513.927 379.122 C 513.86 378.896 513.307 377.026 514.352 376.205 C 514.89 375.782 524.43 371.746 525.312 371.373 C 534.334 367.556 534.741 366.11 536.393 367.933 C 536.409 367.95 536.735 367.815 542.914 384.861 C 546.769 395.494 547.462 395.514 546.822 397.227 C 546.408 398.337 541.135 399.937 529.837 405.188 C 527.471 406.287 526.137 407.063 525.036 406.689 C 523.786 406.264 523.439 404.413 520.313 396.159 Z" fill="#FDFDFD" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 897.136 287.605 C 896.742 285.882 896.17 283.379 892.465 266.002 C 892.398 265.691 891.78 262.79 893.323 262.121 C 894.849 261.459 912.036 256.306 914.387 255.689 C 918.293 254.663 917.839 256.608 918.646 260.554 C 922.817 280.952 924.011 283.35 922.503 284.307 C 920.928 285.306 901.066 291.156 901.027 291.166 C 898.391 291.869 898.004 291.335 897.361 288.689 C 897.273 288.331 897.223 287.964 897.136 287.605 Z" fill="#FDFDFD" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 857.483 512.815 C 856.649 510.683 855.582 509.19 857.562 507.878 C 857.624 507.838 857.655 507.711 862.309 506.082 C 868.871 503.785 874.536 501.089 875.802 501.332 C 877.007 501.564 876.686 502.075 882.677 517.146 C 887.263 528.683 888.268 529.84 886.049 530.964 C 885.114 531.437 871.264 536.536 869.974 537.011 C 867.016 538.1 866.886 536.979 865.764 534.043 C 861.23 522.182 858.16 514.508 857.483 512.815 Z" fill="#FDFDFD" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 791.337 583.34 C 802.023 578.351 802.425 578.469 803.416 578.762 C 804.692 579.139 804.526 579.759 815.399 604.546 C 816.835 607.82 815.021 608.031 812.669 609.101 C 802.893 613.55 800.37 614.673 799.064 614.38 C 797.887 614.116 796.997 611.399 795.445 607.79 C 787.762 589.924 787.665 589.969 787.019 588.407 C 785.789 585.435 787.226 585.22 791.337 583.34 Z" fill="#FDFDFD" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 813.664 350.104 C 817.924 348.386 817.915 348.421 821.662 347.011 C 823.13 346.459 825.032 345.406 825.982 348.4 C 831.823 366.815 832.737 366.827 831.975 368.656 C 831.567 369.637 828.756 370.217 815.004 375.435 C 812.592 376.35 811.953 375.82 810.974 372.908 C 810.528 371.584 807.755 363.337 805.591 356.3 C 804.78 353.662 805.551 353.191 808.369 352.114 C 813.249 350.249 813.242 350.268 813.664 350.104 Z" fill="#FCFCFC" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 794.553 279.22 C 798.568 277.668 801.51 275.953 802.554 278.511 C 803.021 279.657 807.528 293.867 807.687 294.416 C 808.647 297.744 805.878 297.981 802.695 299.097 C 787.966 304.258 787.858 304.287 787.041 303.951 C 786.435 303.701 786.121 303.572 783.937 296.359 C 780.833 286.109 780.732 286.111 780.864 285.194 C 781.099 283.548 782.217 283.665 794.553 279.22 Z" fill="#FDFDFD" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 753.329 512.919 C 751.031 507.388 750.435 506.426 750.843 505.338 C 751.221 504.333 751.38 504.284 763.132 499.947 C 766.204 498.813 766.832 499.064 768.112 502.074 C 775.043 518.383 775.04 518.358 775.61 519.788 C 776.8 522.778 776.145 523.248 773.153 524.421 C 772.252 524.774 762.508 528.593 761.839 528.701 C 758.96 529.166 759.772 527.411 753.329 512.919 Z" fill="#FCFCFC" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 727.399 447.637 C 726.007 444.456 722.007 434.44 721.558 433.097 C 720.529 430.017 721.783 430.03 724.789 428.832 C 733.899 425.202 733.944 424.234 736.059 425.192 C 736.753 425.506 738.51 430.498 740.778 436.435 C 745.355 448.418 746.436 448.688 745.098 450.168 C 744.678 450.632 739.95 452.476 739.493 452.654 C 736.551 453.8 732.338 455.676 731.532 455.384 C 730.162 454.886 729.885 453.662 727.399 447.637 Z" fill="#FCFCFC" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 597.373 341.506 L 605.75 360.837 L 607.063 365.101 L 582.797 372.307 L 575.901 350.323 Z" fill="#FFFFFF" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 544.305 225.767 C 538.254 212.441 538.53 212.077 539.28 211.088 C 539.599 210.666 542.09 209.607 542.344 209.499 C 544.209 208.705 552.844 204.79 553.83 204.437 C 556.918 203.33 557.016 205.974 560.597 214.274 C 562.333 218.298 563.786 220.674 562.472 221.884 C 562.294 222.049 562.294 222.012 560.732 222.721 C 559.711 223.185 549.049 228.027 547.922 228.427 C 545.324 229.347 544.689 226.633 544.305 225.767 Z" fill="#FDFDFD" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 605.75 360.837 C 608.073 368.829 609.804 369.56 607.356 371.085 C 606.223 371.792 595.058 376.511 593.981 376.966 C 589.549 378.839 587.314 380.676 585.865 379.301 C 585.217 378.686 585.383 378.598 584.375 375.929 C 583.95 374.805 583.925 374.828 582.797 372.307 L 583.796 371.661 C 584.401 371.491 584.54 371.937 585.952 371.055 C 588.773 369.294 589.695 369.035 595.134 366.922 C 603.361 363.727 603.548 364.157 604.133 363.663 C 604.564 363.299 604.575 362.578 605.006 362.215 Z" fill="#FFFFFF" fill-rule="evenodd" />
+        <path class="patio-manzana" d="M 605.75 360.837 L 605.006 362.215 C 604.842 362.125 602.96 361.09 602.96 361.09 C 602.752 360.785 602.983 360.333 602.85 359.988 C 602.672 359.531 602.26 359.196 602.054 358.751 C 601.904 358.429 601.802 358.072 601.793 357.717 C 601.783 357.311 602.139 356.896 601.998 356.515 C 601.816 356.026 601.194 355.823 600.924 355.376 C 600.324 354.38 601.254 354.237 600.845 353.154 C 600.659 352.661 600.069 352.423 599.791 351.975 C 599.685 351.804 599.828 351.756 598.912 349.63 C 598.343 348.309 598.502 348.271 598.243 347.652 C 598.054 347.2 597.741 346.808 597.539 346.362 C 596.975 345.116 597.583 344.095 597.579 344.086 C 597.43 343.765 596.827 344.103 596.533 343.905 C 596.295 343.743 596.415 343.256 596.157 343.126 C 595.833 342.963 595.431 343.186 595.068 343.167 C 594.675 343.146 594.259 342.846 593.899 343.004 C 593.66 343.109 593.889 343.574 593.71 343.764 C 593.479 344.007 593.109 344.067 592.791 344.175 C 592.461 344.287 592.09 344.276 591.772 344.421 C 591.621 344.49 591.577 344.699 591.44 344.793 C 591.157 344.987 590.852 345.157 590.529 345.274 C 590.199 345.393 589.814 345.338 589.5 345.494 C 589.315 345.586 589.412 345.977 588.272 346.39 C 587.944 346.509 587.571 346.493 587.255 346.642 C 586.802 346.855 586.447 347.242 585.998 347.46 C 585.684 347.612 585.308 347.594 584.991 347.738 C 584.538 347.943 584.156 348.285 583.706 348.498 C 583.524 348.585 583.513 348.554 581.403 349.509 C 580.286 350.014 579.29 349.794 579.279 349.799 C 579.049 349.906 579.193 350.337 579.007 350.509 C 578.737 350.76 577.876 350.496 578 352.076 C 578.067 352.937 579.206 354.887 579.276 355.465 C 579.322 355.846 579.072 356.257 579.214 356.613 C 579.403 357.089 579.953 357.342 580.2 357.791 C 580.295 357.966 580.177 358.006 581.015 360.146 C 581.408 361.15 581.172 361.198 581.517 362.224 C 581.919 363.419 582.144 363.306 582.477 364.541 C 583.326 367.69 583.997 367.52 583.942 368.863 C 583.916 369.515 583.631 369.444 583.596 370.096 C 583.555 370.901 583.838 370.866 583.796 371.661 L 582.797 372.307 C 579.636 365.494 574.904 351.521 574.884 350.946 C 574.803 348.589 577.2 348.354 586.137 344.404 C 596.042 340.026 596.855 338.84 598.213 340.946 C 598.628 341.591 598.474 341.658 601.774 349.843 C 604.244 355.97 605.474 359.943 605.75 360.837 Z" fill="#FFFFFF" fill-rule="evenodd" />
+
+
+        </g>
+
+        <!-- Capa 5: Levantamiento sutil en hover (se eleva solo la calle o espacio al pasar mouse/dedo) -->
+                                <g id="capa-levantamiento-hover">
+          <!-- Serrano: Sombra vectorial + Calle elevada (0ms lag, sin filtros CPU) -->
+          <g id="hover-serrano" class="elemento-hover-elevado">
+            <path d="M 639.098 341.067 C 720.179 550.755 798.308 704.307 804.318 714.907" fill="none" stroke="rgba(0,0,0,0.22)" stroke-width="50" stroke-linecap="butt" stroke-linejoin="miter" transform="translate(3, 7)" />
+            <path d="M 639.098 341.067 C 720.179 550.755 798.308 704.307 804.318 714.907" fill="none" stroke="#F17149" stroke-width="48" stroke-linecap="butt" stroke-linejoin="miter" />
+          </g>
+
+          <!-- Cochrane: Sombra vectorial + Calle elevada (0ms lag, sin filtros CPU) -->
+          <g id="hover-cochrane" class="elemento-hover-elevado">
+            <path d="M 736.261 301.632 C 746.871 326.434 749.214 333.532 755.316 348.021 L 775.433 407.292 L 811.064 497.369 L 892.909 675.724" fill="none" stroke="rgba(0,0,0,0.22)" stroke-width="42" stroke-linecap="butt" stroke-linejoin="miter" transform="translate(3, 7)" />
+            <path d="M 736.261 301.632 C 746.871 326.434 749.214 333.532 755.316 348.021 L 775.433 407.292 L 811.064 497.369 L 892.909 675.724" fill="none" stroke="#DA7C5F" stroke-width="40" stroke-linecap="butt" stroke-linejoin="miter" />
+          </g>
+
+          <!-- Blanco: Sombra vectorial + Calle elevada (0ms lag, sin filtros CPU) -->
+          <g id="hover-blanco" class="elemento-hover-elevado">
+            <path d="M 813.108 110.487 C 813.108 110.487 819.39 139.425 825.612 170.743 C 829.558 190.607 832.797 210.518 836.579 227.526 C 846.853 273.719 877.237 375.53 877.237 375.53 C 877.237 375.53 912.705 470.974 931.496 518.485 C 950.824 567.354 991.884 662.667 991.884 662.667" fill="none" stroke="rgba(0,0,0,0.22)" stroke-width="42" stroke-linecap="butt" stroke-linejoin="miter" transform="translate(3, 7)" />
+            <path d="M 813.108 110.487 C 813.108 110.487 819.39 139.425 825.612 170.743 C 829.558 190.607 832.797 210.518 836.579 227.526 C 846.853 273.719 877.237 375.53 877.237 375.53 C 877.237 375.53 912.705 470.974 931.496 518.485 C 950.824 567.354 991.884 662.667 991.884 662.667" fill="none" stroke="#F17149" stroke-width="40" stroke-linecap="butt" stroke-linejoin="miter" />
+          </g>
+
+          <!-- Errázuriz: Sombra vectorial + Calle elevada (0ms lag, sin filtros CPU) -->
+          <g id="hover-errazuriz" class="elemento-hover-elevado">
+            <path d="M 960.63 137.241 L 993.205 307.996 L 1030.34 424.845 C 1030.34 424.845 1060.06 485.968 1073.92 514.469 C 1087.11 541.596 1144.06 645.277 1179.58 689.054 C 1215.98 733.916 1372.63 884.879 1372.63 884.879" fill="none" stroke="rgba(0,0,0,0.22)" stroke-width="86" stroke-linecap="butt" stroke-linejoin="miter" transform="translate(3, 7)" />
+            <path d="M 960.63 137.241 L 993.205 307.996 L 1030.34 424.845 C 1030.34 424.845 1060.06 485.968 1073.92 514.469 C 1087.11 541.596 1144.06 645.277 1179.58 689.054 C 1215.98 733.916 1372.63 884.879 1372.63 884.879" fill="none" stroke="#AA918A" stroke-width="83.8" stroke-linecap="butt" stroke-linejoin="miter" />
+          </g>
+
+          <!-- Plaza Sotomayor: Sombra vectorial + Espacio elevado -->
+          <g id="hover-sotomayor" class="elemento-hover-elevado">
+            <path d="M 988.606 683.75 L 1042.18 772.344 L 869.119 894.654 L 817.418 755.361 Z" fill="rgba(0,0,0,0.22)" stroke="none" fill-rule="evenodd" transform="translate(3, 7)" />
+            <path d="M 988.606 683.75 L 1042.18 772.344 L 869.119 894.654 L 817.418 755.361 Z" fill="#63B1C9" stroke="none" fill-rule="evenodd" />
+          </g>
+
+          <!-- Monumento: Sombra vectorial + Espacio elevado -->
+          <g id="hover-monumento" class="elemento-hover-elevado">
+            <path d="M 1084.72 632.87 L 1131.24 705.97 L 1047.53 759.237 L 1001.02 686.138 Z" fill="rgba(0,0,0,0.22)" stroke="none" fill-rule="evenodd" transform="translate(3, 7)" />
+            <path d="M 1084.72 632.87 L 1131.24 705.97 L 1047.53 759.237 L 1001.02 686.138 Z" fill="#86A1A9" stroke="none" fill-rule="evenodd" />
+          </g>
+
+          <!-- Muelle Prat: Sombra vectorial + Espacio elevado -->
+          <g id="hover-muelle" class="elemento-hover-elevado">
+            <path d="M 1265.55 411.004 L 1283.28 434.735 L 1347.73 486.165 L 1382 507.429 L 1220.61 637.88 L 1176.87 575.209 C 1176.87 575.209 1202.08 556.898 1226.98 540.554 C 1243.78 529.523 1235.87 506.426 1232.6 489.63 C 1231.15 482.173 1248.72 475.273 1253.09 464.274 C 1255.15 459.086 1201.13 362.561 1202.29 354.518 C 1203.08 349 1207.8 314.526 1207.8 314.526 C 1207.8 314.526 1225 346.8 1239.79 374.536 C 1250.92 395.432 1265.55 411.004 1265.55 411.004 Z" fill="rgba(0,0,0,0.22)" stroke="none" fill-rule="evenodd" transform="translate(3, 7)" />
+            <path d="M 1265.55 411.004 L 1283.28 434.735 L 1347.73 486.165 L 1382 507.429 L 1220.61 637.88 L 1176.87 575.209 C 1176.87 575.209 1202.08 556.898 1226.98 540.554 C 1243.78 529.523 1235.87 506.426 1232.6 489.63 C 1231.15 482.173 1248.72 475.273 1253.09 464.274 C 1255.15 459.086 1201.13 362.561 1202.29 354.518 C 1203.08 349 1207.8 314.526 1207.8 314.526 C 1207.8 314.526 1225 346.8 1239.79 374.536 C 1250.92 395.432 1265.55 411.004 1265.55 411.004 Z" fill="#3FC2E9" stroke="none" fill-rule="evenodd" />
+          </g>
+
+          <!-- Plaza Echaurren: Sombra vectorial + Espacio elevado -->
+          <g id="hover-echaurren" class="elemento-hover-elevado">
+            <path d="M 713.594 190.093 L 734.922 269.366 L 566.099 330.538 L 535.016 263.228 Z" fill="rgba(0,0,0,0.22)" stroke="none" fill-rule="evenodd" transform="translate(3, 7)" />
+            <path d="M 713.594 190.093 L 734.922 269.366 L 566.099 330.538 L 535.016 263.228 Z" fill="#7BA7B4" stroke="none" fill-rule="evenodd" />
+          </g>
+        </g>
+
+        <!-- Capa 6: Levantamientos 3D axonométricos de edificios (aparecen al apretar/presionar) -->
+        <g id="capa-edificios" class="capa-edificios"></g>
+
+        <!-- Capa 7: Áreas interactivas para clic y hover -->
+        <g id="capa-interaccion">
+          <!-- Serrano hit -->
+          <path class="hit-interactivo" data-sector="serrano" d="M 639.098 341.067 C 720.179 550.755 798.308 704.307 804.318 714.907" fill="none" stroke="rgba(0,0,0,0.001)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round" role="button" tabindex="0" aria-label="Calle Serrano: 100% Contención" />
+          <!-- Cochrane hit -->
+          <path class="hit-interactivo" data-sector="cochrane" d="M 736.261 301.632 C 746.871 326.434 749.214 333.532 755.316 348.021 L 775.433 407.292 L 811.064 497.369 L 892.909 675.724" fill="none" stroke="rgba(0,0,0,0.001)" stroke-width="50" stroke-linecap="round" stroke-linejoin="round" role="button" tabindex="0" aria-label="Calle Cochrane: 47% Contención, 47% Cruce" />
+          <!-- Blanco hit -->
+          <path class="hit-interactivo" data-sector="blanco" d="M 813.108 110.487 C 813.108 110.487 819.39 139.425 825.612 170.743 C 829.558 190.607 832.797 210.518 836.579 227.526 C 846.853 273.719 877.237 375.53 877.237 375.53 C 877.237 375.53 912.705 470.974 931.496 518.485 C 950.824 567.354 991.884 662.667 991.884 662.667" fill="none" stroke="rgba(0,0,0,0.001)" stroke-width="50" stroke-linecap="round" stroke-linejoin="round" role="button" tabindex="0" aria-label="Calle Blanco: 73% Contención, 20% Cruce" />
+          <!-- Errázuriz hit -->
+          <path class="hit-interactivo" data-sector="errazuriz" d="M 960.63 137.241 L 993.205 307.996 L 1030.34 424.845 C 1030.34 424.845 1060.06 485.968 1073.92 514.469 C 1087.11 541.596 1144.06 645.277 1179.58 689.054 C 1215.98 733.916 1372.63 884.879 1372.63 884.879" fill="none" stroke="rgba(0,0,0,0.001)" stroke-width="95" stroke-linecap="round" stroke-linejoin="round" role="button" tabindex="0" aria-label="Avenida Errázuriz: 33% Contención, 40% Cruce, 27% Apertura" />
+          <!-- Plaza Sotomayor hit -->
+          <path class="hit-interactivo" data-sector="sotomayor" d="M 988.606 683.75 L 1042.18 772.344 L 869.119 894.654 L 817.418 755.361 Z" fill="rgba(0,0,0,0.001)" stroke="none" fill-rule="evenodd" role="button" tabindex="0" aria-label="Plaza Sotomayor: 80% Apertura" />
+          <!-- Monumento hit -->
+          <path class="hit-interactivo" data-sector="monumento" d="M 1084.72 632.87 L 1131.24 705.97 L 1047.53 759.237 L 1001.02 686.138 Z" fill="rgba(0,0,0,0.001)" stroke="none" fill-rule="evenodd" role="button" tabindex="0" aria-label="Monumento a los Héroes: 60% Apertura" />
+          <!-- Muelle Prat hit -->
+          <path class="hit-interactivo" data-sector="muelle" d="M 1265.55 411.004 L 1283.28 434.735 L 1347.73 486.165 L 1382 507.429 L 1220.61 637.88 L 1176.87 575.209 C 1176.87 575.209 1202.08 556.898 1226.98 540.554 C 1243.78 529.523 1235.87 506.426 1232.6 489.63 C 1231.15 482.173 1248.72 475.273 1253.09 464.274 C 1255.15 459.086 1201.13 362.561 1202.29 354.518 C 1203.08 349 1207.8 314.526 1207.8 314.526 C 1207.8 314.526 1225 346.8 1239.79 374.536 C 1250.92 395.432 1265.55 411.004 1265.55 411.004 Z" fill="rgba(0,0,0,0.001)" stroke="none" fill-rule="evenodd" role="button" tabindex="0" aria-label="Muelle Prat: 100% Apertura" />
+          <!-- Plaza Echaurren hit -->
+          <path class="hit-interactivo" data-sector="echaurren" d="M 713.594 190.093 L 734.922 269.366 L 566.099 330.538 L 535.016 263.228 Z" fill="rgba(0,0,0,0.001)" stroke="none" fill-rule="evenodd" role="button" tabindex="0" aria-label="Plaza Echaurren: 67% Apertura" />
+        </g>
+
+      </g>
+    </svg>
+
+    <!-- Tooltip compacto al pasar el mouse / dedo: solo porcentaje con barra de color -->
+    <div id="tooltip-resumen" class="tooltip-resumen" role="tooltip" aria-hidden="true">
+      <div class="tooltip-nombre" id="tt-nombre">CALLE SERRANO</div>
+      <div class="tooltip-barra">
+        <div class="tooltip-seg-contencion" id="tt-bar-contencion" style="width: 100%"></div>
+        <div class="tooltip-seg-cruce" id="tt-bar-cruce" style="width: 0%"></div>
+        <div class="tooltip-seg-apertura" id="tt-bar-apertura" style="width: 0%"></div>
+      </div>
+      <div class="tooltip-cifras">
+        <span id="tt-txt-principal">100% Contención</span>
+        <span id="tt-txt-secundario">0% Apertura</span>
+      </div>
     </div>
 
-    <div class="instruccion" aria-hidden="true">ARRASTRAR · ZOOM RUEDA / PELLIZCAR</div>
-    <p class="solo-lectores">Desplaza el mapa arrastrándolo. Acerca o aleja con la rueda del mouse o con el gesto de pellizcar con dos dedos. Toca o pasa el mouse por una zona para consultar las respuestas y enfocar su levantamiento.</p>
+    <!-- Rectángulo a la derecha con la información detallada (al presionar) -->
+    <aside id="panel-info" class="panel-info" role="dialog" aria-labelledby="pi-nombre" aria-modal="false">
+      <button id="btn-cerrar-info" class="btn-cerrar-info" aria-label="Cerrar panel de información">✕</button>
+      
+      <div class="pi-etiqueta-tipo" id="pi-tipo">CALLE DE VALPARAÍSO</div>
+      <h2 class="pi-nombre" id="pi-nombre">Calle Serrano</h2>
+
+      <div class="pi-barra-container">
+        <div class="pi-barra">
+          <div class="pi-seg-contencion" id="pi-seg-contencion" style="width: 100%"></div>
+          <div class="pi-seg-cruce" id="pi-seg-cruce" style="width: 0%"></div>
+          <div class="pi-seg-apertura" id="pi-seg-apertura" style="width: 0%"></div>
+        </div>
+        <div class="pi-cifras-grid">
+          <div class="pi-tarjeta-cifra contencion" id="pi-card-contencion">
+            <span class="pi-cifra-valor" id="pi-val-contencion">100%</span>
+            <span class="pi-cifra-label">Contención</span>
+            <span class="pi-cifra-votos" id="pi-votos-contencion">15 de 15 votos</span>
+          </div>
+          <div class="pi-tarjeta-cifra apertura" id="pi-card-apertura">
+            <span class="pi-cifra-valor" id="pi-val-apertura">0%</span>
+            <span class="pi-cifra-label">Apertura</span>
+            <span class="pi-cifra-votos" id="pi-votos-apertura">0 de 15 votos</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pi-seccion-titulo">Percepción del Espacio</div>
+      <p class="pi-descripcion" id="pi-descripcion"></p>
+
+      <div class="pi-metodologia">
+        Muestra de 15 encuestas realizadas a personas en Barrio Puerto, Valparaíso.
+      </div>
+    </aside>
+
   </main>
 
-  <script>
-    "use strict";
-    // Datos: 15 registros de «Percepción de Amplitud del Espacio — Hoja 1».
-    // Una clasificación por persona y lugar: apertura + contención = 15.
-    // d define contornos aproximados sobre la cartografía vectorial dibujada en código.
-    // Para afinar una zona, edita sus coordenadas SVG a continuación.
-    const espacios = [
-      {
-        id:'echaurren', nombre:'Plaza Echaurren', apertura:10, contencion:5,
-        tipo:'area',
-        // Vacío real junto a la calle y los árboles: NO edificio.
-        d:'M 70 165 L 110 142 L 179 113 L 248 122 L 283 166 L 281 233 L 222 264 L 154 296 L 106 294 L 69 248 Z',
-        // Los levantamientos siguen el borde urbano del lado edificado, no un anillo circular.
-        guias:[
-          { lado:-1, puntos:[[245,131],[274,166],[272,222],[227,253],[166,283]], min:8, max:14, separacion:8 }
-        ],
-        etiqueta:{x:122,y:131,texto:'PLAZA ECHAURREN'}
-      },
-      {
-        id:'serrano', nombre:'Calle Serrano', apertura:0, contencion:15,
-        tipo:'calle', ancho:18,
-        d:'M 245 266 C 270 339 293 423 324 503 C 348 579 382 671 419 763 L 467 876',
-        etiqueta:{x:311,y:453,texto:'SERRANO',rotar:69}
-      },
-      {
-        id:'cochrane', nombre:'Calle Cochrane', apertura:2, contencion:13,
-        tipo:'calle', ancho:19,
-        d:'M 360 205 C 389 302 411 398 438 472 C 464 546 505 644 537 714 L 625 870',
-        etiqueta:{x:466,y:534,texto:'COCHRANE',rotar:69}
-      },
-      {
-        id:'blanco', nombre:'Calle Blanco', apertura:0, contencion:15,
-        tipo:'calle', ancho:19,
-        d:'M 485 140 C 512 234 544 354 585 468 C 620 572 667 694 713 807',
-        etiqueta:{x:557,y:351,texto:'BLANCO',rotar:71}
-      },
-      {
-        id:'errazuriz', nombre:'Avenida Errázuriz', apertura:6, contencion:9,
-        tipo:'calle', ancho:43,
-        d:'M 635 -36 C 651 120 682 269 721 400 C 759 532 808 652 851 738',
-        etiqueta:{x:718,y:350,texto:'AV. ERRÁZURIZ',rotar:72}
-      },
-      {
-        id:'muelle', nombre:'Muelle Prat', apertura:15, contencion:0,
-        tipo:'area',
-        // Explanada junto a los embarcaderos (no cubre el mar completo).
-        d:'M 1017 470 L 1091 492 L 1169 542 L 1223 578 L 1280 620 L 1307 657 L 1271 720 L 1192 700 L 1118 655 L 1053 606 L 1009 541 Z',
-        // Solo el borde urbano: no aparecen volúmenes del lado del mar.
-        guias:[
-          { lado:1, puntos:[[1016,535],[1051,575],[1111,622],[1188,670],[1267,705]], min:10, max:18, separacion:9 }
-        ],
-        etiqueta:{x:1112,y:464,texto:'MUELLE PRAT'}
-      },
-      {
-        id:'sotomayor', nombre:'Plaza Sotomayor', apertura:12, contencion:3,
-        tipo:'area',
-        // Gran espacio pavimentado abierto al costado del monumento.
-        d:'M 502 945 L 552 909 L 635 894 L 725 886 L 771 934 L 760 1007 L 716 1068 L 615 1120 L 551 1091 L 502 1017 Z',
-        // Borde edificado del perímetro, en tramos rectos y esquinas más cuadradas.
-        guias:[
-          { lado:-1, puntos:[[731,905],[752,944],[748,1000],[709,1057],[621,1106],[557,1083]], min:10, max:18, separacion:10 }
-        ],
-        etiqueta:{x:548,y:1086,texto:'PLAZA SOTOMAYOR'}
-      },
-      {
-        id:'monumento', nombre:'Monumento a los Héroes de Iquique', apertura:9, contencion:6,
-        tipo:'area',
-        // Plataforma peatonal real, separada de los edificios.
-        d:'M 786 818 L 844 799 L 878 827 L 899 872 L 845 911 L 792 895 L 775 854 Z',
-        // Sigue el marco del monumento con caras rectas, evitando una distribución circular.
-        guias:[
-          { lado:-1, puntos:[[790,852],[803,823],[843,810],[878,831],[890,870],[847,901],[801,889]], min:6, max:12, separacion:7 }
-        ],
-        etiqueta:{x:834,y:782,texto:'HÉROES DE IQUIQUE',centrado:true}
-      }
-    ];
-
-    const SVG = 'http://www.w3.org/2000/svg';
-    const svg = document.getElementById('mapa');
-    const colores = document.getElementById('capas-color');
-    const etiquetas = document.getElementById('etiquetas');
-    const visor = document.getElementById('visor');
-    const detalle = document.getElementById('detalle');
-    const total = 15;
-    const mundo = { ancho: 1319, alto: 1193 };
-    const azul = [24, 182, 230]; // Celeste (#18b6e6)
-    const naranja = [240, 84, 36]; // Naranja (#f05424)
-
-    function elementoSVG(nombre, atributos = {}) {
-      const el = document.createElementNS(SVG, nombre);
-      Object.entries(atributos).forEach(([clave, valor]) => el.setAttribute(clave, String(valor)));
-      return el;
-    }
-    function colorDe(espacio) {
-      const t = espacio.contencion / (espacio.apertura + espacio.contencion);
-      return `rgb(${azul.map((c, i) => Math.round(c * (1 - t) + naranja[i] * t)).join(',')})`;
-    }
-
-    /* =============================================================
-       PLANO DE MANZANAS SÓLIDAS GEOMÉTRICAS DE BARRIO PUERTO (1319x1193)
-       Trazado de figura-fondo (lleno-vacío) sobre la imagen satelital:
-       manzanas edificadas en negro geométrico (#181818) con patios de luz
-       y calles, pasajes, plazas y dársena abiertos en blanco/color.
-       ============================================================= */
-    const plano = document.getElementById('cartografia');
-    const manzanasSolidas = [
-      // --- FRANJA ENTRE CALLE SERRANO Y CALLE COCHRANE (Norte a Sur) ---
-      // SC-1: Manzana suroriente de Plaza Echaurren (Serrano / Valdivia / Cochrane)
-      'M 252 272 L 284 252 L 328 232 L 352 274 L 270 306 Z',
-      // SC-2: Sitio amurallado con gran patio abierto central (visible en foto satelital)
-      'M 275 318 L 357 286 L 391 378 L 309 410 Z M 291 328 L 345 306 L 369 368 L 315 390 Z',
-      // SC-3: Manzana central Serrano–Cochrane con patio de luz interior
-      'M 314 422 L 396 390 L 438 496 L 356 528 Z M 352 448 L 376 438 L 392 478 L 368 488 Z',
-      // SC-4: Manzana media Serrano–Cochrane frente a Subida Cordillera
-      'M 361 540 L 443 508 L 491 620 L 409 652 Z M 398 564 L 424 554 L 440 592 L 414 602 Z',
-      // SC-5: Manzana alargada Serrano–Cochrane norte de Pasaje Ross
-      'M 415 664 L 497 632 L 551 752 L 469 784 Z M 454 690 L 482 678 L 502 724 L 474 736 Z',
-      // SC-6: Manzana triangular / Reina Victoria convergiendo hacia Plaza Sotomayor
-      'M 475 796 L 557 764 L 601 862 L 536 902 L 512 882 Z',
-
-      // --- FRANJA ENTRE CALLE COCHRANE Y CALLE BLANCO (Norte a Sur) ---
-      // CB-0: Manzana norte de Mercado Puerto (Bustamante / Márquez)
-      'M 298 -60 L 428 -60 L 444 16 L 316 50 Z',
-      // CB-1: Mercado Puerto (gran volumen rectangular con lucernario central)
-      'M 322 64 L 446 28 L 468 136 L 352 174 Z M 366 82 L 422 64 L 434 118 L 378 136 Z',
-      // CB-2: Manzana cuadrada al suroriente del Mercado Puerto (Valdivia / Blanco)
-      'M 362 190 L 474 152 L 502 246 L 396 282 Z M 408 206 L 442 194 L 452 226 L 418 238 Z',
-      // CB-3: Manzana Cochrane–Blanco norte
-      'M 401 294 L 507 258 L 538 358 L 432 394 Z M 446 314 L 478 302 L 490 338 L 458 350 Z',
-      // CB-4: Manzana Cochrane–Blanco central
-      'M 437 406 L 543 370 L 579 484 L 479 520 Z',
-      // CB-5: Manzana Cochrane–Blanco sur-central con patio interior
-      'M 485 532 L 584 496 L 630 616 L 531 652 Z M 526 556 L 558 544 L 576 590 L 544 602 Z',
-      // CB-6: Manzana Cochrane–Blanco norte de Sotomayor
-      'M 537 664 L 635 628 L 683 738 L 589 774 Z',
-      // CB-7: Cabezal sur Cochrane–Blanco frente a Plaza Sotomayor
-      'M 595 786 L 689 750 L 710 816 L 646 856 L 631 846 Z',
-
-      // --- FRANJA ENTRE CALLE BLANCO Y AV. ERRÁZURIZ (Norte a Sur) ---
-      // BE-0: Manzana extremo norte Blanco–Errázuriz
-      'M 456 -72 L 582 -82 L 592 -24 L 470 -8 Z',
-      // BE-1: Manzana amurallada con gran vacío interior rectangular (extremo superior foto)
-      'M 474 6 L 594 -12 L 614 106 L 496 136 Z M 492 20 L 580 6 L 596 92 L 508 116 Z',
-      // BE-2: Edificio patrimonial Blanco–Errázuriz norte con patio de luz
-      'M 502 150 L 618 120 L 642 230 L 530 262 Z M 548 172 L 588 160 L 598 206 L 558 218 Z',
-      // BE-3: Edificio Blanco–Errázuriz medio-norte
-      'M 534 274 L 646 242 L 672 326 L 560 360 Z',
-      // BE-4: Gran edificio de planta cuadrada Blanco–Errázuriz central
-      'M 564 372 L 676 338 L 718 446 L 596 482 Z M 608 394 L 652 380 L 668 422 L 624 436 Z',
-      // BE-5: Segundo sitio amurallado con vacío interior entre Blanco y Errázuriz
-      'M 602 496 L 724 458 L 764 552 L 644 594 Z M 620 508 L 710 478 L 742 542 L 652 574 Z',
-      // BE-6: Gran bloque escalonado en altura al norponiente del Monumento
-      'M 650 608 L 770 566 L 844 718 L 746 792 L 728 774 Z M 698 638 L 752 618 L 788 692 L 734 714 Z',
-
-      // --- FRANJA ENTRE AV. ERRÁZURIZ Y MUELLE PRAT / DÁRSENA ---
-      // ER-1 a ER-3: Pabellones y recintos portuarios norte
-      'M 676 -36 L 768 -36 L 792 96 L 702 114 Z',
-      'M 786 -24 L 856 -12 L 866 108 L 806 116 Z',
-      'M 716 132 L 818 118 L 846 210 L 746 232 Z',
-      // ER-4: Edificio longitudinal borde oriente de Av. Errázuriz
-      'M 718 248 L 764 234 L 816 376 L 768 392 Z',
-      // ER-5: Pabellones del borde costero y embarcadero Muelle Prat
-      'M 878 214 L 936 196 L 986 286 L 928 312 Z',
-      'M 936 326 L 984 304 L 1068 482 L 1018 508 Z',
-      // ER-6: Edificio en L (Compañía Sudamericana / RPS) frente a Av. Errázuriz y Muelle Prat
-      'M 774 406 L 838 382 L 928 566 L 998 528 L 1032 588 L 922 664 L 858 580 Z M 804 436 L 828 426 L 898 570 L 874 582 Z',
-
-      // --- SECTOR NORTE Y NORPONIENTE DE PLAZA ECHAURREN (Bustamante / Clave / San Martín) ---
-      'M 188 -76 L 284 -76 L 304 12 L 204 46 Z',
-      'M 94 34 L 188 2 L 214 82 L 118 116 Z',
-      'M -4 80 L 72 48 L 104 124 L 26 158 Z M 30 92 L 58 80 L 70 108 L 42 120 Z',
-      'M -24 -28 L 58 -58 L 84 18 L 2 52 Z',
-      'M 74 -58 L 168 -88 L 192 -14 L 98 18 Z',
-      'M -170 -50 L -45 -88 L -18 -8 L -142 36 Z',
-      'M -165 55 L -32 8 L -2 88 L -135 138 Z',
-      'M -150 156 L -18 106 L 14 186 L -118 238 Z',
-
-      // --- SECTOR PONIENTE DE CALLE SERRANO Y CERRO CORDILLERA (Calle Castillo / Subida Cordillera) ---
-      // Hilera 1: Inmediata a Calle Serrano (paralela a Serrano)
-      'M 104 268 L 176 238 L 206 322 L 134 352 Z M 126 278 L 162 262 L 180 310 L 144 326 Z',
-      'M 148 368 L 220 338 L 252 422 L 180 452 Z M 170 378 L 206 362 L 226 410 L 190 426 Z',
-      'M 192 468 L 264 438 L 298 524 L 226 554 Z M 214 478 L 250 462 L 272 512 L 236 528 Z',
-      'M 236 570 L 308 540 L 344 628 L 272 658 Z M 258 580 L 294 564 L 318 616 L 282 632 Z',
-      'M 280 674 L 352 644 L 390 732 L 318 762 Z M 302 684 L 338 668 L 364 720 L 328 736 Z',
-      'M 324 778 L 396 748 L 436 838 L 364 868 Z M 346 788 L 382 772 L 410 826 L 374 842 Z',
-      // Hilera 2: Manzanas intermedias Calle Castillo (paralelas y perfectamente alineadas)
-      'M 8 310 L 80 280 L 110 364 L 38 394 Z M 30 320 L 66 304 L 84 352 L 48 368 Z',
-      'M 52 410 L 124 380 L 156 464 L 84 494 Z M 74 420 L 110 404 L 130 452 L 94 468 Z',
-      'M 96 510 L 168 480 L 202 566 L 130 596 Z M 118 520 L 154 504 L 176 554 L 140 570 Z',
-      'M 140 612 L 212 582 L 248 670 L 176 700 Z M 162 622 L 198 606 L 222 658 L 186 674 Z',
-      'M 184 716 L 256 686 L 294 774 L 222 804 Z M 206 726 L 242 710 L 268 762 L 232 778 Z',
-      'M 228 820 L 300 790 L 340 880 L 268 910 Z M 250 830 L 286 814 L 314 868 L 278 884 Z',
-      // Hilera 3: Ladera de Cerro Cordillera (cuadrados regulares sin deformaciones)
-      'M -88 352 L -16 322 L 14 406 L -58 436 Z',
-      'M -44 452 L 28 422 L 60 506 L -12 536 Z',
-      'M 0 552 L 72 522 L 106 608 L 34 638 Z',
-      'M 44 654 L 116 624 L 152 712 L 80 742 Z',
-      'M 88 758 L 160 728 L 198 816 L 126 846 Z',
-      'M 132 862 L 204 832 L 244 922 L 172 952 Z',
-      // Hilera 4: Borde poniente exterior continuo
-      'M -184 394 L -112 364 L -82 448 L -154 478 Z',
-      'M -140 494 L -68 464 L -36 548 L -108 578 Z',
-      'M -96 594 L -24 564 L 10 650 L -62 680 Z',
-      'M -52 696 L 20 666 L 56 754 L -16 784 Z',
-      'M -8 800 L 64 770 L 102 858 L 30 888 Z',
-      'M 36 904 L 108 874 L 148 964 L 76 994 Z',
-
-      // --- SECTOR SURPONIENTE DE PLAZA SOTOMAYOR (Edificio Armada de Chile y entorno) ---
-      // Ala norte y Palacio de la Comandancia en Jefe de la Armada (planta en U hacia Sotomayor)
-      'M 312 918 L 458 868 L 486 942 L 342 996 Z M 356 922 L 434 894 L 448 932 L 370 960 Z',
-      'M 332 1022 L 478 964 L 542 1096 L 472 1134 L 444 1078 L 408 1096 L 436 1152 L 382 1178 Z',
-      // Manzanas vecinas al poniente y sur de la Armada
-      'M -8 892 L 68 848 L 114 928 L 34 978 Z',
-      'M 82 952 L 158 902 L 204 976 L 126 1028 Z',
-      'M 206 942 L 288 892 L 322 964 L 240 1012 Z',
-      'M -12 1038 L 78 986 L 128 1072 L 36 1126 Z',
-      'M 118 1058 L 214 1004 L 264 1096 L 166 1152 Z',
-      'M 242 1088 L 322 1046 L 374 1164 L 292 1204 Z',
-      'M 24 1148 L 138 1092 L 184 1186 L 68 1244 Z',
-      'M 168 1174 L 268 1124 L 314 1218 L 212 1268 Z',
-      'M 378 1194 L 552 1112 L 582 1196 L 414 1272 Z',
-
-      // --- SECTOR SURORIENTE Y ORIENTE DE SOTOMAYOR / MONUMENTO (Ex Correos, Prat, Esmeralda, Estación Puerto) ---
-      // Borde sur de Plaza Sotomayor
-      'M 644 1136 L 712 1072 L 784 1138 L 714 1204 Z',
-      // Edificio Sudamericana / Turri (costado suroriente de Sotomayor)
-      'M 758 1054 L 840 988 L 896 1036 L 812 1112 Z',
-      // Edificio Ministerio de las Culturas (Ex Correos) y manzana con gran patio cuadrado
-      'M 874 958 L 964 880 L 1026 930 L 934 1014 Z M 910 956 L 960 912 L 990 938 L 940 982 Z',
-      // Complejo Estación Puerto y Aduana Portuaria (al oriente del Monumento)
-      'M 1024 846 L 1102 744 L 1184 812 L 1104 914 Z M 1062 842 L 1104 788 L 1144 820 L 1102 874 Z',
-      'M 1126 726 L 1232 714 L 1296 786 L 1204 862 L 1192 802 Z',
-      'M 1248 708 L 1326 684 L 1388 758 L 1312 812 Z',
-      // Segunda y tercera línea de manzanas hacia Calle Prat, Esmeralda y Blanco Sur
-      'M 824 1122 L 912 1044 L 986 1112 L 896 1192 Z M 862 1120 L 910 1078 L 946 1110 L 898 1152 Z',
-      'M 948 1026 L 1038 944 L 1116 1016 L 1024 1100 Z M 988 1024 L 1036 980 L 1074 1014 L 1026 1058 Z',
-      'M 1118 926 L 1202 828 L 1288 902 L 1202 1002 Z M 1158 922 L 1202 870 L 1244 906 L 1200 958 Z',
-      'M 1004 1114 L 1094 1034 L 1176 1110 L 1084 1194 Z',
-      'M 1138 1028 L 1228 946 L 1314 1026 L 1222 1110 Z M 1180 1026 L 1226 984 L 1268 1022 L 1222 1064 Z',
-      'M 728 1216 L 814 1138 L 892 1212 L 804 1292 Z',
-      'M 914 1206 L 1002 1128 L 1082 1204 L 992 1284 Z',
-      'M 1102 1208 L 1194 1126 L 1278 1204 L 1184 1288 Z',
-      'M 1238 876 L 1322 798 L 1412 882 L 1326 962 Z',
-      'M 1244 1124 L 1336 1042 L 1426 1126 L 1332 1210 Z',
-      'M 1340 976 L 1428 898 L 1516 982 L 1426 1062 Z'
-    ];
-
-    const pathManzanas = document.createElementNS(SVG, 'path');
-    pathManzanas.setAttribute('class', 'manzana-solida');
-    pathManzanas.setAttribute('d', manzanasSolidas.join(' '));
-    plano.appendChild(pathManzanas);
-
-    // Parterres geométricos y basamento central del Monumento a los Héroes de Iquique
-    const parterresMonumento = [
-      'M 804 824 L 842 810 L 850 826 L 814 838 Z',
-      'M 862 832 L 876 828 L 890 864 L 872 872 Z',
-      'M 828 886 L 866 874 L 874 888 L 842 902 Z',
-      'M 786 854 L 802 846 L 816 880 L 798 888 Z',
-      'M 826 844 L 850 836 L 858 858 L 834 866 Z'
-    ];
-    const pathParterres = document.createElementNS(SVG, 'path');
-    pathParterres.setAttribute('class', 'parterre-monumento');
-    pathParterres.setAttribute('d', parterresMonumento.join(' '));
-    plano.appendChild(pathParterres);
-
-    // Líneas de borde de la dársena portuaria y plataforma del monumento
-    const limites = [
-      // Borde de la dársena y muelle de abrigo al oriente del Muelle Prat
-      'M 865 -10 L 865 56 L 882 102 L 924 163 L 971 239 L 1000 302 L 1046 380 L 1100 456 L 1183 524 L 1317 614',
-      // Vereda octogonal del Monumento a los Héroes de Iquique
-      'M 784 814 L 844 793 L 883 822 L 904 871 L 848 919 L 785 897 L 766 854 Z'
-    ];
-    limites.forEach((d,i) => {
-      const node = document.createElementNS(SVG,'path');
-      node.setAttribute('d',d);
-      node.setAttribute('class',i===1?'contorno-monumento':'trazo-borde');
-      plano.appendChild(node);
-    });
-
-    // La capa de color se construye en el segundo script directamente en SVG,
-    // usando los resultados de cada lugar sin halos cromáticos externos.
-    function activarEspacio(id, activo, coord) {
-      document.querySelectorAll(`[data-resaltado="${id}"]`).forEach(el => {
-        el.classList.toggle('activo', activo);
-      });
-      if (window.enfocarSector) {
-        window.enfocarSector(activo ? id : null, coord);
-      }
-    }
-
-    // Los polígonos y las calles siguen siendo clicables e interactivos
-    espacios.forEach(espacio => {
-      const grupo = elementoSVG('g', {'class':'zona-interactiva', 'data-lugar':espacio.id});
-      const area = espacio.tipo === 'area';
-      const atributos = area
-        ? {d:espacio.d, fill:'rgba(0,0,0,0.001)', 'pointer-events':'all'}
-        : {d:espacio.d, fill:'none', stroke:'rgba(0,0,0,0.001)',
-           'stroke-width':Math.max(espacio.ancho+48,68),
-           'stroke-linecap':'round', 'stroke-linejoin':'round',
-           'pointer-events':'stroke'};
-      const hit = elementoSVG('path', {
-        ...atributos, 'class':'zona-interaccion',
-        tabindex:0, role:'button',
-        'aria-label':`${espacio.nombre}: ${espacio.apertura} apertura y ${espacio.contencion} contención`
-      });
-      grupo.appendChild(hit);
-      colores.appendChild(grupo);
-      hit.addEventListener('pointerenter', ev => {
-        if (!detalleFijo) mostrarDetalle(espacio, ev);
-        activarEspacio(espacio.id, true, ev);
-      });
-      hit.addEventListener('pointermove', ev => moverDetalle(ev));
-      hit.addEventListener('pointerleave', () => {
-        if (!detalleFijo) {
-          ocultarDetalle();
-          activarEspacio(espacio.id, false);
-        }
-      });
-      hit.addEventListener('click', ev => {
-        if (apuntadorMovido) return;
-        ev.stopPropagation();
-        enfocarYZoom(espacio.id, ev);
-      });
-      hit.addEventListener('keydown', ev => {
-        if (ev.key === 'Enter' || ev.key === ' ') {
-          ev.preventDefault();
-          enfocarYZoom(espacio.id, null);
-        }
-      });
-      const et = elementoSVG('text',{
-        x:espacio.etiqueta.x, y:espacio.etiqueta.y,
-        'class':'etiqueta',
-        'text-anchor':espacio.etiqueta.centrado?'middle':'start',
-        ...(espacio.etiqueta.rotar ? {
-          transform:`rotate(${espacio.etiqueta.rotar} ${espacio.etiqueta.x} ${espacio.etiqueta.y})`
-        } : {})
-      });
-      et.textContent=espacio.etiqueta.texto;
-      etiquetas.appendChild(et);
-    });
-
-    let detalleFijo = false;
-    let apuntadorMovido = false;
-    function porcentaje(cantidad) {
-      return Number((cantidad / total * 100).toFixed(1)).toLocaleString('es-CL') + '%';
-    }
-    function mostrarDetalle(e, evento) {
-      if (apuntadorMovido) return;
-      document.getElementById('detalle-lugar').textContent = e.nombre;
-      document.getElementById('valor-apertura').textContent = porcentaje(e.apertura);
-      document.getElementById('valor-contencion').textContent = porcentaje(e.contencion);
-      document.getElementById('detalle-explicacion').textContent =
-        `${e.apertura} de ${total} personas perciben apertura; ` +
-        `${e.contencion} de ${total} personas perciben contención.`;
-      document.getElementById('barra-apertura').style.width = `${e.apertura / total * 100}%`;
-      document.getElementById('barra-contencion').style.width = `${e.contencion / total * 100}%`;
-      detalle.hidden = false;
-      if (evento) moverDetalle(evento);
-      else { detalle.style.left = '50%'; detalle.style.top = '24px'; }
-    }
-    function moverDetalle(evento) {
-      if (detalle.hidden || detalleFijo || apuntadorMovido) return;
-      const r = visor.getBoundingClientRect();
-      const ancho = detalle.offsetWidth || 216;
-      const alto = detalle.offsetHeight || 172;
-      const x = Math.min(Math.max(12,r.width - ancho - 12), Math.max(12, evento.clientX - r.left + 17));
-      const y = Math.min(Math.max(12,r.height - alto - 12), Math.max(12, evento.clientY - r.top + 15));
-      detalle.style.left = `${x}px`;
-      detalle.style.top = `${y}px`;
-    }
-    function ocultarDetalle() { detalle.hidden = true; }
-
-    // Cámara 100% pantalla: encuadre centrado y equilibrado de Barrio Puerto.
-    // Tamaño predeterminado al abrir la página y límite máximo de alejamiento (ZOOM_MIN = 1.0).
-    let zoom = 1.0;
-    let centro = {x: 650, y: 610};
-    let vista = {ancho: 1830, alto: 1480};
-    const ZOOM_MIN = 1.0;
-    const ZOOM_MAX = 5.5;
-    const cursores = new Map();
-    let arrastre = null;
-    let pellizco = null;
-    const LIMITES = {minX: -265, maxX: 1565, minY: -130, maxY: 1350};
-
-    function dimensiones(z = zoom) {
-      const r = visor.getBoundingClientRect();
-      const base = Math.min(r.width / 1830, r.height / 1480);
-      const escala = base * z;
-      return {ancho: r.width / escala, alto: r.height / escala};
-    }
-    function pintarCamara() {
-      vista = dimensiones();
-      const {ancho, alto} = vista;
-      const anchura = LIMITES.maxX - LIMITES.minX;
-      const altura = LIMITES.maxY - LIMITES.minY;
-      centro.x = ancho >= anchura ? (LIMITES.minX + LIMITES.maxX) / 2 : Math.max(LIMITES.minX + ancho / 2, Math.min(LIMITES.maxX - ancho / 2, centro.x));
-      centro.y = alto >= altura ? (LIMITES.minY + LIMITES.maxY) / 2 : Math.max(LIMITES.minY + alto / 2, Math.min(LIMITES.maxY - alto / 2, centro.y));
-      svg.setAttribute('viewBox', [centro.x - ancho / 2, centro.y - alto / 2, ancho, alto].join(' '));
-    }
-    function coordenadaPantalla(cx, cy) {
-      const r = svg.getBoundingClientRect();
-      const fx = (cx - r.left) / r.width;
-      const fy = (cy - r.top) / r.height;
-      return {x: centro.x + (fx - 0.5) * vista.ancho, y: centro.y + (fy - 0.5) * vista.alto, fx, fy};
-    }
-    function cambiarZoom(nuevoZoom, cx, cy) {
-      if (idAnimacion) cancelAnimationFrame(idAnimacion);
-      const ancla = coordenadaPantalla(cx ?? innerWidth / 2, cy ?? innerHeight / 2);
-      zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, nuevoZoom));
-      const d = dimensiones();
-      centro.x = ancla.x - (ancla.fx - 0.5) * d.ancho;
-      centro.y = ancla.y - (ancla.fy - 0.5) * d.alto;
-      pintarCamara();
-    }
-
-    let idAnimacion = null;
-    function animarCamara(targetZoom, targetCentro, duracion = 500) {
-      if (idAnimacion) cancelAnimationFrame(idAnimacion);
-      const zoomInicio = zoom;
-      const centroInicio = { x: centro.x, y: centro.y };
-      const t0 = performance.now();
-      function step(ahora) {
-        const progreso = Math.min(1, (ahora - t0) / duracion);
-        const ease = progreso < 0.5
-          ? 4 * progreso * progreso * progreso
-          : 1 - Math.pow(-2 * progreso + 2, 3) / 2;
-        zoom = zoomInicio + (targetZoom - zoomInicio) * ease;
-        centro.x = centroInicio.x + (targetCentro.x - centroInicio.x) * ease;
-        centro.y = centroInicio.y + (targetCentro.y - centroInicio.y) * ease;
-        pintarCamara();
-        if (progreso < 1) {
-          idAnimacion = requestAnimationFrame(step);
-        } else {
-          idAnimacion = null;
-        }
-      }
-      idAnimacion = requestAnimationFrame(step);
-    }
-
-    const ENFOQUES = {
-      echaurren: { x: 200, y: 220, zoom: 2.6 },
-      serrano:   { x: 360, y: 570, zoom: 2.05 },
-      cochrane:  { x: 495, y: 540, zoom: 2.05 },
-      blanco:    { x: 600, y: 480, zoom: 2.05 },
-      errazuriz: { x: 740, y: 370, zoom: 1.85 },
-      muelle:    { x: 1150, y: 600, zoom: 2.3 },
-      sotomayor: { x: 640, y: 990, zoom: 2.2 },
-      monumento: { x: 840, y: 860, zoom: 2.7 }
-    };
-
-    let sectorEnfocado = null;
-
-    function posicionarDetalleFijo(id) {
-      const r = visor.getBoundingClientRect();
-      const w = detalle.offsetWidth || 230;
-      if (id === 'echaurren' || id === 'serrano' || id === 'cochrane') {
-        detalle.style.left = `${Math.max(20, r.width - w - 25)}px`;
-        detalle.style.top = '25px';
-      } else {
-        detalle.style.left = '25px';
-        detalle.style.top = '25px';
-      }
-    }
-
-    function enfocarYZoom(id, ev) {
-      if (apuntadorMovido) return;
-      if (ev && ev.stopPropagation) ev.stopPropagation();
-      if (sectorEnfocado === id) {
-        restablecer(true);
-        return;
-      }
-      sectorEnfocado = id;
-      const espacio = espacios.find(e => e.id === id);
-      if (!espacio) return;
-
-      espacios.forEach(e => activarEspacio(e.id, false));
-      activarEspacio(id, true, ev);
-
-      detalleFijo = false;
-      mostrarDetalle(espacio, null);
-      posicionarDetalleFijo(id);
-      detalleFijo = true;
-
-      const obj = ENFOQUES[id] || { x: centro.x, y: centro.y, zoom: 2.2 };
-      animarCamara(obj.zoom, { x: obj.x, y: obj.y }, 520);
-    }
-    window.enfocarYZoom = enfocarYZoom;
-
-    function restablecer(animado = true) {
-      sectorEnfocado = null;
-      detalleFijo = false;
-      ocultarDetalle();
-      if (window.enfocarSector) window.enfocarSector(null, null);
-      document.querySelectorAll('.resaltado-zona').forEach(el => el.classList.remove('activo'));
-      if (animado) {
-        animarCamara(1.0, { x: 650, y: 610 }, 480);
-      } else {
-        if (idAnimacion) cancelAnimationFrame(idAnimacion);
-        zoom = 1.0;
-        centro = { x: 650, y: 610 };
-        pintarCamara();
-      }
-    }
-    window.restablecerVista = restablecer;
-
-    visor.addEventListener('wheel', ev => {
-      if (ev.target.closest('.leyenda, .detalle')) return;
-      ev.preventDefault();
-      cambiarZoom(zoom * Math.exp(-ev.deltaY * 0.0014), ev.clientX, ev.clientY);
-    }, {passive: false});
-    svg.addEventListener('dblclick', () => restablecer(true));
-
-    svg.addEventListener('pointerdown', ev => {
-      if (ev.button !== 0 && ev.pointerType === 'mouse') return;
-      svg.setPointerCapture(ev.pointerId);
-      cursores.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
-      apuntadorMovido = false;
-      if (cursores.size === 1) {
-        arrastre = {x: ev.clientX, y: ev.clientY, inicioX: ev.clientX, inicioY: ev.clientY};
-        pellizco = null;
-      } else if (cursores.size === 2) {
-        const [p1,p2] = [...cursores.values()];
-        pellizco = {distancia: Math.hypot(p2.x - p1.x, p2.y - p1.y), zoom};
-        arrastre = null;
-      }
-    });
-    svg.addEventListener('pointermove', ev => {
-      if (!cursores.has(ev.pointerId)) return;
-      const prev = cursores.get(ev.pointerId);
-      cursores.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
-      if (cursores.size === 2 && pellizco) {
-        const [a,b] = [...cursores.values()];
-        const distancia = Math.hypot(b.x - a.x,b.y - a.y);
-        apuntadorMovido = true;
-        cambiarZoom(pellizco.zoom * distancia / pellizco.distancia, (a.x+b.x)/2, (a.y+b.y)/2);
-        return;
-      }
-      if (arrastre && cursores.size === 1) {
-        const dx = ev.clientX - prev.x;
-        const dy = ev.clientY - prev.y;
-        if (Math.hypot(ev.clientX - arrastre.inicioX, ev.clientY - arrastre.inicioY) > 5) {
-          apuntadorMovido = true;
-          ocultarDetalle();
-          centro.x -= dx * vista.ancho / visor.clientWidth;
-          centro.y -= dy * vista.alto / visor.clientHeight;
-          pintarCamara();
-          svg.classList.add('arrastrando');
-        }
-      }
-    });
-    function finalizarPuntero(ev) {
-      cursores.delete(ev.pointerId);
-      svg.classList.remove('arrastrando');
-      if (cursores.size === 0) { arrastre = null; pellizco = null; }
-      else if (cursores.size === 1) {
-        const p = [...cursores.values()][0];
-        arrastre = {...p, inicioX: p.x, inicioY: p.y};
-        pellizco = null;
-      }
-    }
-    svg.addEventListener('pointerup', finalizarPuntero);
-    svg.addEventListener('pointercancel', finalizarPuntero);
-    svg.addEventListener('click', ev => {
-      if (apuntadorMovido) { apuntadorMovido = false; return; }
-      const esSector = ev.target.closest('.zona-interaccion, .resaltado-zona');
-      if (!esSector) {
-        if (sectorEnfocado) {
-          restablecer(true);
-        } else {
-          ocultarDetalle();
-          detalleFijo = false;
-        }
-      }
-    });
-    document.addEventListener('keydown', ev => {
-      if (ev.key === 'Escape') restablecer(true);
-      if (ev.key === '+' || ev.key === '=') cambiarZoom(zoom * 1.25);
-      if (ev.key === '-') cambiarZoom(zoom / 1.25);
-      if (ev.key === '0') restablecer(true);
-      const paso = 85 / zoom;
-      if (ev.key === 'ArrowLeft') centro.x -= paso;
-      if (ev.key === 'ArrowRight') centro.x += paso;
-      if (ev.key === 'ArrowUp') centro.y -= paso;
-      if (ev.key === 'ArrowDown') centro.y += paso;
-      if (ev.key.startsWith('Arrow')) {ev.preventDefault(); pintarCamara();}
-    });
-    window.addEventListener('resize', pintarCamara);
-    pintarCamara();
-  </script>
-<script>
-/* ===============================================================
-   RESALTADO VECTORIAL / DATOS REALES: 15 respuestas por lugar.
-   Las zonas de color se asignan por proximidad a los recorridos
-   representativos de cada lugar, SIN teñir zonas de 0 votos.
-   La única máscara difuminada es la del CONTORNO general.
-   Todo permanece en SVG; funciona al hacer zoom o cambiar pantalla.
-   =============================================================== */
-(() => {
-  const ns = 'http://www.w3.org/2000/svg';
-  const svg = document.getElementById('mapa');
-  const grupo = document.getElementById('capas-color');
-  const defs = svg.querySelector('defs');
-  const crear = (tipo, atributos = {}) => {
-    const elemento = document.createElementNS(ns, tipo);
-    Object.entries(atributos).forEach(([clave, valor]) => elemento.setAttribute(clave, String(valor)));
-    return elemento;
-  };
-
-  // Conserva las mismas 8 zonas clicables y sus eventos.
-  const zonasClicables = [...grupo.querySelectorAll(':scope > .zona-interactiva')];
-  grupo.replaceChildren();
-
-  // Misma figura aprobada, con esquinas curvas, incrustada como SVG.
-    const silueta = `M1308.8 73.9 Q1308.0 74.0 1308.0 74.8 L1308.0 76.2 Q1308.0 77.0 1308.6 77.6 L1310.9 79.9 Q1312.0 81.0 1313.6 81.3 L1316.3 81.7 Q1318.0 82.0 1318.0 80.3 L1318.0 75.5 Q1318.0 73.0 1315.5 73.3 Z
-M1194.0 4.5 Q1194.0 0.0 1189.5 0.0 L865.5 0.0 Q861.0 0.0 861.4 4.5 L871.7 108.8 Q872.0 112.0 872.8 115.1 L874.3 120.6 Q875.0 123.0 876.1 125.2 L877.9 128.8 Q879.0 131.0 880.5 133.0 L913.3 175.4 Q916.0 179.0 918.9 182.4 L960.1 231.6 Q963.0 235.0 965.6 238.7 L972.4 248.4 Q975.0 252.0 976.4 256.2 L978.6 262.8 Q980.0 267.0 980.7 271.4 L990.3 329.6 Q991.0 334.0 991.9 338.4 L1001.1 380.6 Q1002.0 385.0 1004.2 389.0 L1011.8 403.0 Q1014.0 407.0 1016.5 410.8 L1070.6 493.3 Q1073.0 497.0 1074.4 501.2 L1076.6 507.8 Q1078.0 512.0 1077.8 516.4 L1077.2 526.5 Q1077.0 531.0 1076.1 535.4 L1067.9 577.6 Q1067.0 582.0 1067.0 586.5 L1067.0 593.5 Q1067.0 598.0 1068.3 602.3 L1071.6 612.7 Q1073.0 617.0 1074.8 621.1 L1085.9 646.4 Q1087.0 649.0 1087.0 651.8 L1087.0 656.8 Q1087.0 659.0 1085.3 660.4 L1082.7 662.6 Q1081.0 664.0 1078.8 664.0 L1074.5 664.0 Q1072.0 664.0 1069.6 663.4 L1048.1 658.0 Q1044.0 657.0 1039.8 657.3 L1033.2 657.7 Q1029.0 658.0 1024.9 659.0 L965.4 673.9 Q961.0 675.0 956.9 676.8 L932.8 687.2 Q931.0 688.0 929.0 688.0 L926.0 688.0 Q924.0 688.0 922.2 687.2 L919.0 685.8 Q917.0 685.0 915.6 683.4 L906.9 673.4 Q904.0 670.0 901.7 666.1 L854.3 585.9 Q852.0 582.0 850.1 577.9 L805.9 486.1 Q804.0 482.0 802.3 477.8 L762.7 378.2 Q761.0 374.0 759.6 369.7 L707.4 215.3 Q706.0 211.0 705.0 206.6 L669.5 45.4 Q669.0 43.0 667.9 40.8 L666.1 37.2 Q665.0 35.0 663.2 33.2 L659.3 29.3 Q658.0 28.0 656.3 27.2 L653.7 25.8 Q652.0 25.0 650.2 24.5 L619.2 16.6 Q617.0 16.0 614.8 16.0 L610.6 16.0 Q609.0 16.0 607.6 16.8 L605.4 18.2 Q604.0 19.0 603.4 20.5 L601.8 24.8 Q601.0 27.0 601.2 29.4 L601.7 36.4 Q602.0 40.0 602.7 43.6 L631.1 189.6 Q632.0 194.0 633.1 198.4 L651.9 270.6 Q653.0 275.0 654.4 279.3 L666.6 317.7 Q668.0 322.0 669.7 326.2 L722.3 455.8 Q724.0 460.0 725.8 464.1 L765.2 551.9 Q767.0 556.0 769.0 560.0 L804.0 632.0 Q806.0 636.0 808.2 639.9 L838.8 695.1 Q841.0 699.0 842.7 703.2 L849.1 718.9 Q850.0 721.0 849.4 723.2 L848.6 726.8 Q848.0 729.0 846.4 730.6 L841.5 735.5 Q839.0 738.0 836.0 739.9 L786.8 770.6 Q783.0 773.0 779.6 776.0 L761.2 792.1 Q759.0 794.0 756.5 795.4 L752.2 797.8 Q750.0 799.0 747.5 798.7 L743.5 798.3 Q741.0 798.0 739.2 796.2 L736.0 793.0 Q734.0 791.0 732.7 788.6 L728.1 780.0 Q726.0 776.0 724.1 771.9 L653.9 617.1 Q652.0 613.0 650.3 608.8 L592.7 464.2 Q591.0 460.0 589.8 455.7 L560.2 349.3 Q559.0 345.0 557.6 340.7 L511.4 195.3 Q510.0 191.0 508.9 186.6 L494.1 128.4 Q493.0 124.0 492.2 119.6 L486.8 88.4 Q486.0 84.0 484.9 79.6 L472.1 27.4 Q471.0 23.0 470.4 18.5 L468.6 4.5 Q468.0 0.0 463.5 0.0 L441.5 0.0 Q437.0 0.0 437.2 4.5 L437.8 14.5 Q438.0 19.0 439.4 23.3 L443.6 36.7 Q445.0 41.0 445.9 45.4 L452.1 76.6 Q453.0 81.0 454.3 85.3 L457.7 96.7 Q459.0 101.0 459.9 105.4 L470.1 157.6 Q471.0 162.0 472.2 166.3 L480.8 197.7 Q482.0 202.0 483.5 206.3 L508.5 279.7 Q510.0 284.0 511.2 288.3 L553.8 440.7 Q555.0 445.0 556.5 449.2 L581.5 517.8 Q583.0 522.0 584.7 526.2 L631.3 641.8 Q633.0 646.0 634.9 650.1 L661.1 706.9 Q663.0 711.0 665.1 715.0 L686.9 757.0 Q689.0 761.0 690.8 765.1 L709.6 808.7 Q711.0 812.0 711.0 815.6 L711.0 821.4 Q711.0 825.0 708.7 827.8 L703.8 833.6 Q701.0 837.0 697.1 839.0 L680.0 847.9 Q676.0 850.0 671.8 851.7 L653.1 859.2 Q651.0 860.0 648.8 860.0 L644.3 860.0 Q643.0 860.0 641.9 859.4 L640.1 858.6 Q639.0 858.0 638.2 857.1 L633.2 851.5 Q631.0 849.0 629.5 846.0 L550.0 681.1 Q548.0 677.0 546.2 672.9 L531.8 641.1 Q530.0 637.0 528.4 632.8 L504.6 570.2 Q503.0 566.0 500.9 562.0 L490.1 541.0 Q488.0 537.0 486.3 532.8 L439.7 419.2 Q438.0 415.0 436.5 410.8 L417.5 357.2 Q416.0 353.0 414.7 348.7 L403.3 309.3 Q402.0 305.0 400.3 300.8 L379.7 250.2 Q378.0 246.0 376.1 241.9 L359.9 206.1 Q358.0 202.0 355.4 198.4 L347.6 187.6 Q345.0 184.0 343.1 179.9 L335.9 164.1 Q334.0 160.0 331.1 156.5 L321.9 145.5 Q319.0 142.0 316.7 138.1 L302.6 114.7 Q301.0 112.0 298.8 109.8 L295.2 106.2 Q293.0 104.0 290.4 102.2 L279.3 94.6 Q277.0 93.0 274.5 91.9 L270.5 90.1 Q268.0 89.0 265.3 88.8 L260.1 88.3 Q257.0 88.0 254.1 89.0 L238.3 94.5 Q234.0 96.0 229.9 97.8 L177.3 120.5 Q174.0 122.0 170.4 122.3 L164.6 122.7 Q161.0 123.0 157.6 121.7 L150.6 119.0 Q148.0 118.0 145.2 118.0 L140.1 118.0 Q138.0 118.0 136.0 118.8 L133.0 120.2 Q131.0 121.0 129.5 122.5 L126.7 125.3 Q125.0 127.0 124.4 129.3 L122.8 135.6 Q122.0 139.0 120.0 141.8 L116.2 146.9 Q114.0 150.0 110.7 152.0 L79.4 170.9 Q76.0 173.0 73.2 175.8 L68.8 180.2 Q66.0 183.0 64.5 186.7 L58.6 201.1 Q57.0 205.0 56.4 209.2 L55.6 215.8 Q55.0 220.0 56.3 224.0 L58.6 230.8 Q60.0 235.0 62.3 238.8 L76.6 262.2 Q79.0 266.0 80.9 270.1 L85.2 279.2 Q87.0 283.0 87.6 287.2 L88.5 294.0 Q89.0 298.0 87.9 301.9 L85.6 309.8 Q85.0 312.0 86.1 314.0 L87.9 317.0 Q89.0 319.0 91.1 319.9 L99.1 323.3 Q103.0 325.0 106.3 327.7 L112.8 333.2 Q115.0 335.0 117.8 335.6 L123.1 336.6 Q125.0 337.0 126.4 335.6 L128.6 333.4 Q130.0 332.0 130.6 330.1 L133.7 320.8 Q135.0 317.0 138.4 314.8 L143.6 311.2 Q147.0 309.0 150.8 307.5 L193.4 291.0 Q196.0 290.0 198.8 290.0 L203.2 290.0 Q206.0 290.0 208.2 291.7 L213.2 295.8 Q216.0 298.0 217.3 301.3 L323.4 575.8 Q325.0 580.0 327.1 584.0 L393.9 710.0 Q396.0 714.0 398.0 718.1 L424.0 771.9 Q426.0 776.0 427.7 780.2 L438.3 805.8 Q440.0 810.0 442.0 814.0 L485.7 900.4 Q487.0 903.0 487.8 905.8 L489.2 910.2 Q490.0 913.0 490.3 915.9 L491.7 931.7 Q492.0 935.0 493.1 938.1 L494.9 942.9 Q496.0 946.0 497.5 948.9 L528.0 1009.0 Q530.0 1013.0 531.8 1017.1 L560.2 1082.9 Q562.0 1087.0 563.3 1091.3 L582.7 1152.7 Q584.0 1157.0 584.5 1161.5 L587.5 1187.5 Q588.0 1192.0 592.5 1192.0 L633.5 1192.0 Q638.0 1192.0 640.0 1188.0 L644.5 1179.0 Q646.0 1176.0 646.0 1172.6 L646.0 1167.4 Q646.0 1164.0 645.2 1160.7 L640.6 1143.2 Q640.0 1141.0 640.0 1138.8 L640.0 1135.2 Q640.0 1133.0 640.8 1130.9 L642.2 1127.2 Q643.0 1125.0 644.6 1123.2 L655.0 1111.4 Q658.0 1108.0 661.4 1105.0 L690.6 1079.0 Q694.0 1076.0 697.8 1073.6 L707.1 1067.8 Q710.0 1066.0 713.4 1066.8 L718.6 1068.2 Q722.0 1069.0 724.3 1071.6 L735.0 1083.6 Q738.0 1087.0 741.3 1090.1 L779.0 1126.1 Q781.0 1128.0 783.5 1129.1 L787.9 1131.1 Q790.0 1132.0 792.2 1131.7 L796.0 1131.3 Q798.0 1131.0 799.1 1129.3 L800.9 1126.7 Q802.0 1125.0 801.4 1123.1 L800.6 1120.0 Q800.0 1118.0 798.8 1116.4 L790.7 1105.6 Q788.0 1102.0 784.8 1098.8 L769.2 1083.2 Q766.0 1080.0 763.3 1076.4 L754.7 1065.3 Q753.0 1063.0 752.4 1060.2 L751.4 1055.1 Q751.0 1053.0 751.8 1051.0 L753.2 1048.0 Q754.0 1046.0 755.6 1044.6 L807.5 1001.9 Q811.0 999.0 814.8 996.6 L835.1 984.2 Q837.0 983.0 839.2 983.0 L842.8 983.0 Q845.0 983.0 847.0 984.0 L850.8 985.9 Q853.0 987.0 854.7 988.8 L889.5 1026.3 Q891.0 1028.0 893.0 1029.1 L896.0 1030.9 Q898.0 1032.0 900.2 1031.8 L906.0 1031.1 Q907.0 1031.0 907.6 1030.2 L908.4 1028.8 Q909.0 1028.0 909.0 1027.0 L909.0 1020.8 Q909.0 1018.0 907.8 1015.5 L905.4 1010.1 Q904.0 1007.0 901.7 1004.5 L876.9 977.1 Q875.0 975.0 873.6 972.5 L871.2 968.2 Q870.0 966.0 869.7 963.5 L869.3 959.5 Q869.0 957.0 870.1 954.8 L871.9 951.2 Q873.0 949.0 874.8 947.2 L879.5 942.5 Q882.0 940.0 884.7 937.7 L955.4 879.4 Q957.0 878.0 959.0 877.2 L962.0 875.8 Q964.0 875.0 966.1 875.4 L971.9 876.4 Q975.0 877.0 977.3 879.2 L1017.4 917.4 Q1019.0 919.0 1021.0 920.1 L1024.0 921.9 Q1026.0 923.0 1028.3 923.0 L1033.7 923.0 Q1036.0 923.0 1038.0 921.9 L1041.0 920.1 Q1043.0 919.0 1044.5 917.3 L1052.7 908.5 Q1055.0 906.0 1055.3 902.6 L1055.8 896.2 Q1056.0 894.0 1054.9 892.0 L1053.1 889.0 Q1052.0 887.0 1050.5 885.4 L1024.1 857.3 Q1022.0 855.0 1020.6 852.2 L1018.0 847.0 Q1017.0 845.0 1017.3 842.8 L1017.7 839.2 Q1018.0 837.0 1019.2 835.1 L1022.3 829.8 Q1024.0 827.0 1026.1 824.5 L1096.1 742.4 Q1099.0 739.0 1102.2 735.8 L1116.1 721.9 Q1118.0 720.0 1120.2 718.6 L1123.8 716.4 Q1126.0 715.0 1128.6 714.5 L1136.8 712.8 Q1141.0 712.0 1145.3 711.9 L1226.5 710.1 Q1231.0 710.0 1235.3 708.7 L1261.7 700.3 Q1266.0 699.0 1270.1 697.2 L1305.4 682.1 Q1308.0 681.0 1310.8 680.7 L1315.2 680.3 Q1318.0 680.0 1318.0 677.2 L1318.0 507.0 Q1318.0 505.0 1316.0 504.4 L1313.0 503.6 Q1311.0 503.0 1309.5 501.7 L1306.0 498.7 Q1304.0 497.0 1302.9 494.7 L1298.8 485.8 Q1298.0 484.0 1298.0 482.0 L1298.0 478.0 Q1298.0 477.0 1298.6 476.2 L1299.5 474.7 Q1300.0 474.0 1300.8 474.0 L1302.2 474.0 Q1303.0 474.0 1303.7 474.5 L1310.6 479.9 Q1312.0 481.0 1313.7 481.6 L1316.3 482.4 Q1318.0 483.0 1318.0 481.2 L1318.0 135.8 Q1318.0 134.0 1316.3 133.4 L1313.7 132.6 Q1312.0 132.0 1310.9 130.6 L1299.9 117.5 Q1297.0 114.0 1293.0 111.9 L1286.0 108.1 Q1282.0 106.0 1279.0 102.7 L1266.0 88.3 Q1263.0 85.0 1261.2 80.9 L1255.6 68.4 Q1255.0 67.0 1253.9 65.9 L1252.1 64.1 Q1251.0 63.0 1249.6 62.3 L1243.8 59.4 Q1241.0 58.0 1238.8 55.8 L1228.2 45.2 Q1225.0 42.0 1221.1 39.8 L1208.1 32.7 Q1205.0 31.0 1202.5 28.5 L1197.1 23.1 Q1196.0 22.0 1195.4 20.6 L1194.6 18.4 Q1194.0 17.0 1194.0 15.5 Z
-M319.9 235.9 Q322.0 235.0 324.2 235.0 L327.8 235.0 Q330.0 235.0 331.9 236.2 L335.8 238.6 Q338.0 240.0 339.2 242.3 L353.9 270.0 Q356.0 274.0 357.7 278.2 L368.3 303.8 Q370.0 308.0 371.4 312.3 L392.6 378.7 Q394.0 383.0 395.5 387.2 L414.5 438.8 Q416.0 443.0 417.8 447.1 L436.2 490.9 Q438.0 495.0 439.9 499.1 L470.1 562.9 Q472.0 567.0 473.4 571.3 L487.6 612.7 Q489.0 617.0 490.7 621.2 L502.3 649.8 Q504.0 654.0 505.9 658.1 L552.1 756.9 Q554.0 761.0 556.2 764.9 L568.8 788.1 Q571.0 792.0 572.9 796.1 L600.7 855.2 Q602.0 858.0 602.0 861.1 L602.0 866.0 Q602.0 869.0 600.0 871.2 L597.0 874.8 Q595.0 877.0 592.4 878.5 L542.0 907.3 Q539.0 909.0 535.6 908.4 L530.1 907.5 Q527.0 907.0 524.8 904.8 L521.2 901.2 Q519.0 899.0 517.3 896.3 L513.2 889.6 Q511.0 886.0 509.1 882.2 L466.0 793.0 Q464.0 789.0 462.2 784.9 L448.8 753.1 Q447.0 749.0 444.9 745.0 L365.1 593.0 Q363.0 589.0 361.3 584.8 L310.7 461.2 Q309.0 457.0 307.4 452.8 L246.2 288.1 Q245.0 285.0 245.0 281.6 L245.0 276.4 Q245.0 273.0 247.2 270.5 L250.8 266.5 Q253.0 264.0 256.1 262.7 Z`;
-
-  // MÁSCARA PLANA (SIN DIFUMINADOS): Recorte vectorial nítido directo de la silueta
-  const recorte = crear('clipPath', { id: 'recorte-silueta', clipPathUnits: 'userSpaceOnUse' });
-  recorte.appendChild(crear('path', { d: silueta, 'fill-rule': 'evenodd' }));
-  defs.appendChild(recorte);
-
-  const capa = crear('g', {
-    class: 'resaltado-mapa',
-    'clip-path': 'url(#recorte-silueta)',
-    'pointer-events': 'none'
-  });
-
-  // Puntos de referencia de cada lugar SOBRE el trazado existente.
-  // Se usan únicamente para dividir espacialmente la figura. Los colores
-  // se toman de "espacios", cuyas cantidades son las de la encuesta.
-  const puntos = {
-    echaurren: [[122,188],[180,195],[220,270],[130,290]],
-    serrano: [[253,301],[294,432],[346,580],[407,733],[452,865]],
-    cochrane: [[356,214],[402,371],[450,514],[523,687],[606,858]],
-    blanco: [[485,139],[526,295],[575,455],[645,631],[710,797]],
-    errazuriz: [[635,48],[679,245],[725,434],[785,624],[844,757]],
-    muelle: [[960,72],[1055,140],[1085,313],[1168,475],[1240,610],
-            [1260,695],[997,575],[936,370],[1180,220]],
-    monumento: [[814,826],[848,854],[902,917],[965,852],[1025,891]],
-    sotomayor: [[535,940],[615,1010],[700,1075],[619,1150],[750,1040],[680,926]]
-  };
-
-  const sitios = Object.entries(puntos).flatMap(([id, lista]) =>
-    lista.map(([x,y]) => ({id,x,y}))
-  );
-  const porId = Object.fromEntries(espacios.map(e => [e.id,e]));
-  const AZUL = [24, 182, 230]; // Celeste (#18b6e6)
-  const NARANJA = [240, 84, 36]; // Naranja (#f05424)
-
-  function colorExacto(e) {
-    // Si contención = 0, el resultado es SIEMPRE celeste puro.
-    // Si apertura = 0, el resultado es SIEMPRE naranja puro.
-    const parteNaranja = e.contencion / (e.apertura + e.contencion);
-    const rgb = AZUL.map((v,i) => Math.round(v * (1 - parteNaranja) + NARANJA[i] * parteNaranja));
-    return `rgb(${rgb.join(',')})`;
-  }
-
-  // Capa plana de colores sin feGaussianBlur ni difuminados
-  const campoColores = crear('g', {
-    class: 'campo-plano-colores',
-    'pointer-events': 'none',
-    opacity: '0.94'
-  });
-  capa.appendChild(campoColores);
-
-  // Polígonos SVG orientados por proximidad a cada lugar.
-  // Sus valores proceden de las 15 respuestas de cada sector;
-  // el suavizado afecta solamente a su transición VISUAL.
-  function poligonoDeSitio(sitio) {
-    let poligono = [[-70,-70],[1389,-70],[1389,1263],[-70,1263]];
-    for (const otro of sitios) {
-      if (otro === sitio) continue;
-      const nx = otro.x - sitio.x;
-      const ny = otro.y - sitio.y;
-      const corte = (otro.x * otro.x + otro.y * otro.y - sitio.x * sitio.x - sitio.y * sitio.y) / 2;
-      const nuevo = [];
-      for (let i = 0; i < poligono.length; i++) {
-        const a = poligono[i];
-        const b = poligono[(i + 1) % poligono.length];
-        const da = a[0] * nx + a[1] * ny - corte;
-        const db = b[0] * nx + b[1] * ny - corte;
-        const dentroA = da <= 1e-8;
-        const dentroB = db <= 1e-8;
-        if (dentroA) nuevo.push(a);
-        if (dentroA !== dentroB) {
-          const t = da / (da - db);
-          nuevo.push([a[0] + t * (b[0]-a[0]), a[1] + t * (b[1]-a[1])]);
-        }
-      }
-      poligono = nuevo;
-      if (!poligono.length) break;
-    }
-    return poligono.length > 2
-      ? 'M' + poligono.map(p => p.map(n => n.toFixed(2)).join(' ')).join(' L') + ' Z'
-      : '';
-  }
-
-  for (const sitio of sitios) {
-    const d = poligonoDeSitio(sitio);
-    if (!d) continue;
-    const e = porId[sitio.id];
-    const color = colorExacto(e);
-    campoColores.appendChild(crear('path', {
-      d, fill: color, stroke: color, 'stroke-width': 1.25,
-      class: 'resaltado-zona', 'data-resaltado': sitio.id
-    }));
-  }
-
-  grupo.appendChild(capa);
-  zonasClicables.forEach(z => grupo.appendChild(z));
-})();
-</script>
-<script>
-/* ===============================================================
-   LEVANTAMIENTOS 3D AXONOMÉTRICOS — PERCEPCIÓN ESPACIAL EN BARRIO PUERTO
-   Los edificios tridimensionales se levantan ÚNICAMENTE al pasar el
-   mouse por la calle o espacio correspondiente.
-   - Colores: cada sector utiliza su color determinado (paleta calculada
-     de apertura/contención).
-   - Cantidad y altura:
-     * A mayor contención: más edificios y más altos (altura máxima ~115px,
-       densidad compacta a ambos lados de la calle).
-     * A mayor apertura: menos edificios y de menor tamaño/huella
-       (en apertura plena = 0 edificios / 0 levantamiento).
-   =============================================================== */
-(() => {
-  'use strict';
-  const NS = 'http://www.w3.org/2000/svg';
-  const svg = document.getElementById('mapa');
-  const etiquetas = document.getElementById('etiquetas');
-  if (!svg || !etiquetas || typeof espacios === 'undefined') return;
-
-  const crear = (tipo, attrs = {}) => {
-    const e = document.createElementNS(NS, tipo);
-    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, String(v));
-    return e;
-  };
-  const limitar = (n, a, b) => Math.max(a, Math.min(b, n));
-  const punto = (x, y) => ({ x, y });
-  const suma = (a, b) => punto(a.x + b.x, a.y + b.y);
-  const por = (v, n) => punto(v.x * n, v.y * n);
-  const coord = v => `${v.x.toFixed(1)},${v.y.toFixed(1)}`;
-  const puntos = (...vs) => vs.map(coord).join(' ');
-  const aPuntos = lista => lista.map(([x, y]) => punto(x, y));
-
-  const AZUL = [24, 182, 230]; // Apertura (Celeste #18b6e6)
-  const NARANJA = [240, 84, 36]; // Contención (Naranja #f05424)
-
-  function colorRGBDe(e) {
-    const t = e.contencion / (e.apertura + e.contencion);
-    return AZUL.map((c, i) => Math.round(c * (1 - t) + NARANJA[i] * t));
-  }
-
-  function paletaSector(rgb) {
-    const [r, g, b] = rgb;
-    // Techo: Cara superior iluminada, tono vivo y luminoso del color del sector
-    const rT = Math.round(r + (255 - r) * 0.38);
-    const gT = Math.round(g + (255 - g) * 0.38);
-    const bT = Math.round(b + (255 - b) * 0.38);
-    const techo = `rgb(${rT}, ${gT}, ${bT})`;
-
-    // Frente: Cara frontal soleada, translúcida
-    const rF = Math.round(r + (255 - r) * 0.18);
-    const gF = Math.round(g + (255 - g) * 0.18);
-    const bF = Math.round(b + (255 - b) * 0.18);
-    const frente = `rgba(${rF}, ${gF}, ${bF}, 0.82)`;
-    const frenteStroke = `rgba(${Math.round(r * 0.68)}, ${Math.round(g * 0.68)}, ${Math.round(b * 0.68)}, 0.88)`;
-
-    // Lado: Cara lateral en sombra
-    const rL = Math.round(r * 0.72);
-    const gL = Math.round(g * 0.72);
-    const bL = Math.round(b * 0.72);
-    const lado = `rgba(${rL}, ${gL}, ${bL}, 0.88)`;
-    const ladoStroke = `rgba(${Math.round(r * 0.52)}, ${Math.round(g * 0.52)}, ${Math.round(b * 0.52)}, 0.94)`;
-
-    // Trasera: Cara posterior semitransparente
-    const rB = Math.round(r * 0.82);
-    const gB = Math.round(g * 0.82);
-    const bB = Math.round(b * 0.82);
-    const trasera = `rgba(${rB}, ${gB}, ${bB}, 0.42)`;
-    const traseraStroke = `rgba(${Math.round(r * 0.65)}, ${Math.round(g * 0.65)}, ${Math.round(b * 0.65)}, 0.55)`;
-
-    // Borde del techo
-    const bordeTecho = `rgb(${Math.round(r * 0.65)}, ${Math.round(g * 0.65)}, ${Math.round(b * 0.65)})`;
-
-    // Cinta continua superior: cuerpo en color pleno del sector y filo luminoso superior
-    const cinta = `rgb(${r}, ${g}, ${b})`;
-    const cintaFilo = `rgb(${rT}, ${gT}, ${bT})`;
-
-    return { techo, frente, frenteStroke, lado, ladoStroke, trasera, traseraStroke, bordeTecho, cinta, cintaFilo };
-  }
-
-  function prepararGuia(guia) {
-    const pts = aPuntos(guia.puntos);
-    const segmentos = [];
-    let largoTotal = 0;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const a = pts[i], b = pts[i + 1];
-      const largo = Math.hypot(b.x - a.x, b.y - a.y);
-      if (!largo) continue;
-      segmentos.push({ a, b, largo, inicio: largoTotal, fin: largoTotal + largo });
-      largoTotal += largo;
-    }
-    return { ...guia, pts, segmentos, largoTotal };
-  }
-  function puntoEnGuia(guia, d) {
-    const objetivo = limitar(d, 0, guia.largoTotal);
-    const seg = guia.segmentos.find(s => objetivo <= s.fin) || guia.segmentos[guia.segmentos.length - 1];
-    const t = seg.largo ? (objetivo - seg.inicio) / seg.largo : 0;
-    return punto(seg.a.x + (seg.b.x - seg.a.x) * t, seg.a.y + (seg.b.y - seg.a.y) * t);
-  }
-
-  const sectores = espacios.map(e => {
-    const camino = document.querySelector(`[data-lugar="${e.id}"] .zona-interaccion`);
-    if (!camino || !camino.getTotalLength) return null;
-    const largo = camino.getTotalLength();
-    const caja = camino.getBBox();
-    const muestras = [];
-    for (let j = 0; j <= 170; j++) {
-      const d = largo * j / 170;
-      const p = camino.getPointAtLength(d);
-      muestras.push({ x: p.x, y: p.y, distancia: d });
-    }
-    const ratioContencion = e.contencion / 15;
-    // Altura determinada directamente por la cantidad de respuestas de contención:
-    // Muelle Prat (0 contención) tiene altura mínima de 14px; Serrano/Blanco (15 contención) 115px
-    const altura = Math.round(14 + 101 * ratioContencion);
-    return {
-      e, camino, largo, muestras,
-      centro: punto(caja.x + caja.width / 2, caja.y + caja.height / 2),
-      guias: (e.guias || []).map(prepararGuia),
-      altura,
-      ratioContencion
-    };
-  }).filter(Boolean);
-
-  const grupo = crear('g', {
-    id: 'edificios-al-pasar',
-    class: 'levantamientos-axonometricos',
-    'pointer-events': 'none',
-    'aria-hidden': 'true'
-  });
-  svg.insertBefore(grupo, etiquetas);
-
-  const estilo = document.createElement('style');
-  estilo.textContent = `
-    #edificios-al-pasar { pointer-events: none !important; isolation: isolate; }
-    .sector-volumen { pointer-events: none !important; }
-    .sector-volumen polygon,
-    .sector-volumen polyline {
-      stroke-linejoin: round;
-      pointer-events: none !important;
-    }
-    /* Estado reposo / oculto de los edificios */
-    .sector-volumen .edificio-prisma {
-      opacity: 0;
-      transform-box: fill-box;
-      transform-origin: 50% 100%;
-      transform: translateY(12px) scaleY(0.25);
-      /* Al salir, se desvanecen ágilmente sin retardo */
-      transition: opacity 160ms ease 0ms, transform 160ms ease 0ms;
-      pointer-events: none !important;
-    }
-    /* Al pasar el mouse por la calle, se levantan de a pocos con delays escalonados */
-    .sector-volumen.activo .edificio-prisma {
-      opacity: 1;
-      transform: translateY(0) scaleY(1);
-      transition: opacity 280ms cubic-bezier(0.16, 1, 0.3, 1),
-                  transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
-    }
-  `;
-  document.head.appendChild(estilo);
-
-  const obtener = (t, d) => {
-    const p = t.camino.getPointAtLength(limitar(d, 0, t.largo));
-    return punto(p.x, p.y);
-  };
-
-  function distanciaAlCamino(t, x, y) {
-    let dist2 = Infinity;
-    for (const m of t.muestras) {
-      const d2 = (m.x - x) ** 2 + (m.y - y) ** 2;
-      if (d2 < dist2) dist2 = d2;
-    }
-    return Math.sqrt(dist2);
-  }
-
-  function distribuir(t) {
-    const variaciones = [0.90, 1.05, 0.85, 1.10, 0.95, 1.0, 0.88, 1.08, 0.92, 1.12];
-    const modelos = [];
-    const ratio = t.ratioContencion;
-    if (t.altura <= 0) return modelos;
-
-    if (t.guias && t.guias.length) {
-      for (const guia of t.guias) {
-        const margen = Math.min(24, guia.largoTotal * 0.08);
-        const tramo = Math.max(1, guia.largoTotal - 2 * margen);
-        // Cantidad reducida y bien separada:
-        // Muelle Prat (ratio 0): 2 edificios sutiles bien separados
-        // Sotomayor (ratio 0.2): 3 edificios
-        // Echaurren (ratio 0.33): 4 edificios
-        // Monumento (ratio 0.4): 4 edificios
-        const numero = Math.max(2, Math.round(2 + 5 * ratio));
-        for (let i = 0; i < numero; i++) {
-          const dist = margen + (i + 0.5) * tramo / numero;
-          const p = puntoEnGuia(guia, dist);
-          const anterior = puntoEnGuia(guia, dist - 8);
-          const posterior = puntoEnGuia(guia, dist + 8);
-          const ang = Math.atan2(posterior.y - anterior.y, posterior.x - anterior.x);
-          const tang = punto(Math.cos(ang), Math.sin(ang));
-          const normal = punto(-tang.y, tang.x);
-          // Tamaño de edificios: proporcionado para dejar aire libre entre ellos
-          const largoEd = Math.round((10 + 9 * ratio) * (0.9 + (i % 3) * 0.08));
-          const fondo = Math.round(7 + 7 * ratio + (i % 2) * 2);
-          const signo = guia.lado || 1;
-          const centro = suma(p, por(normal, signo * ((guia.separacion || 10) + fondo / 2)));
-          const eje = por(tang, largoEd / 2);
-          const lateral = por(normal, fondo / 2);
-          const a = suma(suma(centro, por(eje, -1)), por(lateral, -1));
-          const b = suma(suma(centro, eje), por(lateral, -1));
-          const c = suma(suma(centro, eje), lateral);
-          const d = suma(suma(centro, por(eje, -1)), lateral);
-          modelos.push({
-            a, b, c, d, centro, lado: signo,
-            distancia: dist,
-            indice: i,
-            altura: t.altura * variaciones[i % variaciones.length] * (ratio === 0 ? 0.72 : 0.85)
-          });
-        }
-      }
-      return modelos;
-    }
-
-    const margen = Math.min(30, t.largo * 0.06);
-    const tramo = Math.max(1, t.largo - 2 * margen);
-    // Cantidad reducida en calles con separación generosa entre edificios ("separa más, pon menos"):
-    // Serrano / Blanco (ratio = 1.0): ~11-12 edificios por lado (22-24 total en vez de 64, con holgura)
-    // Cochrane (ratio = 0.867): ~9-10 edificios por lado
-    // Errázuriz (ratio = 0.60): ~7 edificios por lado
-    const numero = Math.max(4, Math.round((4 + 8 * ratio) * Math.min(1.05, tramo / 520)));
-    for (let i = 0; i < numero; i++) {
-      const dist = margen + (i + 0.5) * tramo / numero;
-      const p = obtener(t, dist);
-      const anterior = obtener(t, dist - 8);
-      const posterior = obtener(t, dist + 8);
-      const ang = Math.atan2(posterior.y - anterior.y, posterior.x - anterior.x);
-      const tang = punto(Math.cos(ang), Math.sin(ang));
-      const normal = punto(-tang.y, tang.x);
-      // Largo y fondo del edificio (deja amplio espacio libre entre edificios consecutivos)
-      const largoEd = Math.round((11 + 7 * ratio) * (0.92 + (i % 3) * 0.08));
-      const fondo = Math.round(8 + 6 * ratio + (i % 2) * 2);
-      for (const lado of [-1, 1]) {
-        const mediaCalle = t.e.ancho / 2;
-        const centro = suma(p, por(normal, lado * (mediaCalle + 6 + fondo / 2)));
-        const eje = por(tang, largoEd / 2);
-        const lateral = por(normal, fondo / 2);
-        const a = suma(suma(centro, por(eje, -1)), por(lateral, -1));
-        const b = suma(suma(centro, eje), por(lateral, -1));
-        const c = suma(suma(centro, eje), lateral);
-        const d = suma(suma(centro, por(eje, -1)), lateral);
-        modelos.push({
-          a, b, c, d, centro, lado,
-          distancia: dist,
-          indice: i,
-          altura: t.altura * variaciones[i % variaciones.length]
-        });
-      }
-    }
-    return modelos;
-  }
-
-  const gruposSector = new Map();
-
-  sectores.forEach(t => {
-    const modelos = distribuir(t);
-    if (!modelos.length) return;
-
-    // Paleta de colores determinada específicamente para este sector
-    const rgbSector = colorRGBDe(t.e);
-    const pal = paletaSector(rgbSector);
-
-    const gSector = crear('g', {
-      class: 'sector-volumen',
-      'data-sector': t.e.id
-    });
-
-    const listaEdificios = [];
-
-    modelos.forEach(m => {
-      const gEd = crear('g', { class: 'edificio-prisma' });
-      gEd._centro = m.centro;
-      gEd._distancia = m.distancia;
-      gEd._indice = m.indice;
-      listaEdificios.push(gEd);
-
-      const h = m.altura;
-      const arriba = punto(h * 0.44, -h * 0.88);
-      const a = suma(m.a, arriba), b = suma(m.b, arriba);
-      const c = suma(m.c, arriba), d = suma(m.d, arriba);
-      const sombraShift = punto(3 + h * 0.1, 3 + h * 0.06);
-
-      const sombra = crear('polygon', {
-        points: puntos(suma(m.a, sombraShift), suma(m.b, sombraShift), suma(m.c, sombraShift), suma(m.d, sombraShift)),
-        fill: 'rgba(0,0,0,0.10)'
-      });
-      const trasera = crear('polygon', {
-        points: puntos(m.c, m.d, d, c),
-        fill: pal.trasera,
-        stroke: pal.traseraStroke,
-        'stroke-width': '0.5'
-      });
-      const frente = crear('polygon', {
-        points: puntos(m.a, m.b, b, a),
-        fill: pal.frente,
-        stroke: pal.frenteStroke,
-        'stroke-width': '0.65'
-      });
-      const lado = crear('polygon', {
-        points: puntos(m.b, m.c, c, b),
-        fill: pal.lado,
-        stroke: pal.ladoStroke,
-        'stroke-width': '0.65'
-      });
-      const techo = crear('polygon', {
-        points: puntos(a, b, c, d),
-        fill: pal.techo,
-        stroke: pal.bordeTecho,
-        'stroke-width': '0.85',
-        opacity: '0.98'
-      });
-      const brillo = crear('polyline', {
-        points: puntos(a, b, c),
-        fill: 'none',
-        stroke: 'rgba(255,255,255,0.85)',
-        'stroke-width': '1.1',
-        'stroke-linecap': 'round'
-      });
-
-      gEd.append(sombra, trasera, frente, lado, techo, brillo);
-      gSector.appendChild(gEd);
-    });
-
-    gSector._edificios = listaEdificios;
-    gSector._centro = t.centro;
-
-    grupo.appendChild(gSector);
-    gruposSector.set(t.e.id, gSector);
-  });
-
-  let sectorActivo = null;
-
-  function coordenadasSVG(ev) {
-    if (!ev) return null;
-    if (ev.x != null && ev.y != null && ev.clientX == null) return ev;
-    const p = svg.createSVGPoint();
-    p.x = ev.clientX; p.y = ev.clientY;
-    return p.matrixTransform(svg.getScreenCTM().inverse());
-  }
-
-  function actualizarEnfoque(id, evOPunto) {
-    const pRaton = evOPunto ? coordenadasSVG(evOPunto) : null;
-    const cambioSector = id !== sectorActivo;
-
-    if (cambioSector) {
-      sectorActivo = id;
-      gruposSector.forEach((g, secId) => {
-        if (id && secId === id) {
-          if (g._edificios) {
-            const ref = pRaton || g._centro;
-            // Escalonamiento de a pocos: ola progresiva que nace donde el mouse entra a la calle
-            g._edificios.forEach(ed => {
-              const c = ed._centro;
-              const dist = ref ? Math.hypot(c.x - ref.x, c.y - ref.y) : (ed._indice || 0) * 35;
-              const delay = Math.min(650, Math.round(dist * 0.85));
-              ed.style.transitionDelay = `${delay}ms`;
-            });
-          }
-          g.classList.add('activo');
-        } else {
-          // Al desactivar, se quita el delay para salida ágil
-          if (g._edificios) {
-            g._edificios.forEach(ed => { ed.style.transitionDelay = '0ms'; });
-          }
-          g.classList.remove('activo');
-        }
-      });
-    } else if (id && pRaton) {
-      // Si el mouse continúa desplazándose por la calle, los edificios que quedan bajo el cursor
-      // se levantan de inmediato si aún estaban esperando en la ola progresiva
-      const g = gruposSector.get(id);
-      if (g && g._edificios) {
-        g._edificios.forEach(ed => {
-          if (Math.hypot(ed._centro.x - pRaton.x, ed._centro.y - pRaton.y) < 70) {
-            ed.style.transitionDelay = '0ms';
-          }
-        });
-      }
-    }
-  }
-
-  window.enfocarSector = actualizarEnfoque;
-
-  let arrastrando = false;
-  function pasar(ev) {
-    if (ev.pointerType === 'touch' || arrastrando || ev.buttons !== 0) return;
-    const p = coordenadasSVG(ev);
-    const zona = ev.target.closest?.('.zona-interactiva');
-    const eZona = zona && espacios.find(e => e.id === zona.getAttribute('data-lugar'));
-    let mejor = null, distancia = Infinity;
-    if (eZona) {
-      mejor = eZona.id;
-    } else {
-      for (const t of sectores) {
-        if (t.e.tipo !== 'calle') continue;
-        const d = distanciaAlCamino(t, p.x, p.y);
-        const tolerancia = Math.max(38, t.e.ancho / 2 + 18);
-        if (d <= tolerancia && d < distancia) { mejor = t.e.id; distancia = d; }
-      }
-    }
-    if (!detalleFijo) {
-      actualizarEnfoque(mejor, ev);
-      document.querySelectorAll('.resaltado-zona').forEach(el => {
-        el.classList.toggle('activo', Boolean(mejor && el.getAttribute('data-resaltado') === mejor));
-      });
-      if (mejor) {
-        const e = espacios.find(x => x.id === mejor);
-        if (e) mostrarDetalle(e, ev);
-      } else {
-        ocultarDetalle();
-      }
-    }
-  }
-
-  svg.addEventListener('pointermove', pasar);
-  svg.addEventListener('pointerleave', () => {
-    if (!detalleFijo) {
-      actualizarEnfoque(null, null);
-      ocultarDetalle();
-      document.querySelectorAll('.resaltado-zona').forEach(el => el.classList.remove('activo'));
-    }
-  });
-  svg.addEventListener('pointerdown', () => { arrastrando = true; });
-  for (const evento of ['pointerup', 'pointercancel', 'lostpointercapture'])
-    svg.addEventListener(evento, () => { arrastrando = false; });
-})();
-</script>
+  <!-- ======================================================================
+       LÓGICA JAVASCRIPT: ANIMACIONES, INTERACCIONES Y CÁMARA
+       ====================================================================== -->
+  <script src="script.js"></script>
 </body>
 </html>
+
+
+
+

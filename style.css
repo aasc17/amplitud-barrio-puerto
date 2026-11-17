@@ -38,7 +38,7 @@ html, body {
 
 /* ==========================================================================
    MENÚ FIJO KEBAB DE NAVEGACIÓN (Página 1: Título, Página 2: Pregunta, Página 3: Mapa)
-   Ubicación fija en la esquina superior izquierda
+   Solo los círculos flotando libremente en la esquina superior izquierda (sin marco)
    ========================================================================== */
 .menu-kebab {
   position: fixed;
@@ -48,14 +48,11 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 30px;
-  padding: 16px 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.07);
+  gap: 12px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
   user-select: none;
   transition: opacity 400ms ease;
 }
@@ -84,19 +81,19 @@ html, body {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #c8c8c8;
+  background: #bbbbbb;
   transition: all 280ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .kebab-punto:hover .kebab-circulo {
-  background: #888888;
-  transform: scale(1.2);
+  background: #666666;
+  transform: scale(1.25);
 }
 
 .kebab-punto.activo .kebab-circulo {
   background: #F17149;
-  transform: scale(1.4);
-  box-shadow: 0 0 0 4px rgba(241, 113, 73, 0.25);
+  transform: scale(1.35);
+  box-shadow: 0 0 0 4px rgba(241, 113, 73, 0.28);
 }
 
 .kebab-tooltip {
@@ -869,8 +866,8 @@ html, body {
     left: 14px;
     top: 14px;
     right: auto;
-    padding: 12px 6px;
-    gap: 12px;
+    padding: 0;
+    gap: 10px;
   }
   .kebab-tooltip {
     display: none;

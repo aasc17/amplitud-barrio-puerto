@@ -37,7 +37,106 @@ html, body {
 }
 
 /* ==========================================================================
-   PANTALLA DE INTRODUCCIÓN (Páginas 2, 3 y 4 del PDF)
+   MENÚ FIJO KEBAB DE NAVEGACIÓN (Página 1: Título, Página 2: Pregunta, Página 3: Mapa)
+   Ubicación fija en la esquina superior izquierda
+   ========================================================================== */
+.menu-kebab {
+  position: fixed;
+  left: 28px;
+  top: 28px;
+  z-index: 10005;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 30px;
+  padding: 16px 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.07);
+  user-select: none;
+  transition: opacity 400ms ease;
+}
+
+.kebab-punto {
+  position: relative;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  outline: none;
+  transition: transform 200ms ease;
+}
+
+.kebab-punto:focus-visible {
+  outline: 2px solid #F17149;
+  outline-offset: 2px;
+}
+
+.kebab-circulo {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #c8c8c8;
+  transition: all 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.kebab-punto:hover .kebab-circulo {
+  background: #888888;
+  transform: scale(1.2);
+}
+
+.kebab-punto.activo .kebab-circulo {
+  background: #F17149;
+  transform: scale(1.4);
+  box-shadow: 0 0 0 4px rgba(241, 113, 73, 0.25);
+}
+
+.kebab-tooltip {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-6px);
+  background: #181818;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 5px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms ease, transform 200ms ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.kebab-tooltip::after {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 4px;
+  border-style: solid;
+  border-color: transparent #181818 transparent transparent;
+}
+
+.kebab-punto:hover .kebab-tooltip,
+.kebab-punto:focus-visible .kebab-tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* ==========================================================================
+   PANTALLA DE INTRODUCCIÓN (Página 1: Título, Página 2: Pregunta + Texto)
    ========================================================================== */
 .pantalla-intro {
   position: fixed;
@@ -149,7 +248,7 @@ html, body {
   padding: 32px;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 550ms ease;
+  transition: opacity 600ms ease, visibility 600ms ease;
   z-index: 20;
 }
 
@@ -158,22 +257,31 @@ html, body {
   visibility: visible;
 }
 
-/* Página 2: Pasos por la Amplitud */
+/* Página 1: Pasos por la Amplitud (Título) */
 .intro-titulo-p2 {
   font-size: clamp(34px, 4.8vw, 60px);
   font-weight: 600;
   letter-spacing: -0.02em;
   color: #111111;
   line-height: 1.25;
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 700ms cubic-bezier(0.16, 1, 0.3, 1), transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Páginas 3 y 4: Pregunta y Subtítulo */
+.intro-vista.activa .intro-titulo-p2 {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Página 2: Pregunta y Subtítulo juntos (con animación) */
 .intro-caja-p3 {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  max-width: 900px;
+  max-width: 920px;
+  gap: 28px;
 }
 
 .intro-pregunta {
@@ -182,28 +290,29 @@ html, body {
   letter-spacing: -0.015em;
   color: #111111;
   line-height: 1.35;
-  transform: translateY(0);
-  transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 700ms cubic-bezier(0.16, 1, 0.3, 1), transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.intro-pregunta.subida {
-  transform: translateY(-32px);
+.intro-vista.activa .intro-pregunta {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .intro-subtitulo {
-  margin-top: 24px;
   font-size: clamp(17px, 2.2vw, 26px);
   font-weight: 400;
   line-height: 1.45;
   color: #111111;
   opacity: 0;
-  transform: translateY(16px);
-  transition: opacity 600ms ease, transform 600ms ease;
+  transform: translateY(24px);
+  transition: opacity 750ms cubic-bezier(0.16, 1, 0.3, 1) 240ms, transform 750ms cubic-bezier(0.16, 1, 0.3, 1) 240ms;
 }
 
-.intro-subtitulo.visible {
+.intro-vista.activa .intro-subtitulo {
   opacity: 1;
-  transform: translateY(-10px);
+  transform: translateY(0);
 }
 
 .t-naranja {
@@ -359,46 +468,116 @@ html, body {
 }
 
 /* ==========================================================================
-   LEVANTAMIENTOS 3D AXONOMÉTRICOS DE EDIFICIOS (Página 5 del PDF)
-   "al presionarlos aparecerán los edificios... los levantamientos serán como
-    los indicados en el pdf pero del color correspondiente a cada calle...
-    deben aparecer de a poco uno por uno, las animaciones fluidas y dar su tiempo"
+   LEVANTAMIENTO DE PALABRAS: ONDA / MONTAÑA Y TIPOGRAFÍA
+   "el levantamiento tienen que ser palabras, bajo el mismo parámetro que antes,
+    es decir la misma disposición que los levantamientos de edificios pero con palabras,
+    siguen apareciendo de a poco y están bien optimizadas las animaciones para que
+    carguen bien de forma fluida.
+    y para que las palabras se lean bien tienen que ser blancas (tipografía montserrat),
+    con fondo blur un poco transparente del color de cada calle haciendo una especie
+    de onda, montaña que tenga la forma que dan las diferentes alturas de las palabras.
+    las palabras van en bold las más repetidas, en light las menos repetidas y regular
+    las que están en medio."
    ========================================================================== */
 .capa-edificios {
   pointer-events: none;
   isolation: isolate;
 }
 
-.grupo-edificios-sector {
+.grupo-levantamiento-sector {
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 280ms ease-out;
+}
+
+.grupo-levantamiento-sector.activo {
+  opacity: 1;
+}
+
+/* La onda / montaña curva base con fondo blur y color de la calle (sin líneas ni trazos de borde) */
+.montana-onda-blur {
+  opacity: 0;
+  transform-origin: 50% 100%;
+  transform: scaleY(0.04);
+  transition: opacity 380ms ease, transform 480ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+  stroke: none !important;
+}
+
+.montana-onda-frente {
+  opacity: 0;
+  transform-origin: 50% 100%;
+  transform: scaleY(0.04);
+  transition: opacity 400ms ease, transform 500ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+  stroke: none !important;
+}
+
+/* Al activarse el sector, la montaña emerge fluidamente según nivel de contención */
+.grupo-levantamiento-sector.activo .montana-onda-blur {
+  opacity: var(--opacidad-blur, 0.55);
+  transform: scaleY(1);
+}
+
+.grupo-levantamiento-sector.activo .montana-onda-frente {
+  opacity: var(--opacidad-frente, 0.75);
+  transform: scaleY(1);
+}
+
+/* Posicionamiento de cada palabra parada en vertical dentro de la montaña */
+.posicion-palabra {
   pointer-events: none;
 }
 
-.edificio-prisma {
+/* Palabras levantadas dentro de la montaña: emergen verticalmente con aceleración GPU */
+.palabra-levantada {
   opacity: 0;
-  transform-box: fill-box;
-  transform-origin: 50% 100%;
-  transform: scaleY(0.04);
-  transition: opacity 380ms cubic-bezier(0.16, 1, 0.3, 1), 
-              transform 480ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateX(-12px) scale(0.92);
+  transform-origin: 0 0;
+  transition: opacity 220ms ease-out, transform 220ms ease-out;
   pointer-events: none;
   will-change: opacity, transform;
 }
 
-/* Al activarse el sector, los edificios emergen uno por uno fluidamente con 72.3% opacidad exacta del PDF */
-.grupo-edificios-sector.activo .edificio-prisma {
-  opacity: 0.723;
-  transform: scaleY(1);
+.grupo-levantamiento-sector.activo .palabra-levantada {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  transition: opacity 380ms cubic-bezier(0.16, 1, 0.3, 1), 
+              transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Tipografía Montserrat en blanco puro (#ffffff) parada en vertical con efecto perspectiva isométrica 3D */
+.palabra-texto {
+  font-family: 'Montserrat', sans-serif !important;
+  fill: #ffffff !important;
+  user-select: none;
+  pointer-events: none;
+  text-rendering: geometricPrecision;
+  text-transform: uppercase;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.40));
+}
+
+.palabra-levantada.peso-bold .palabra-texto {
+  font-weight: 900 !important;
+  letter-spacing: 0.04em;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.52));
+}
+
+.palabra-levantada.peso-regular .palabra-texto {
+  font-weight: 600 !important;
+  letter-spacing: 0.035em;
+  filter: drop-shadow(0 1.5px 3.5px rgba(0, 0, 0, 0.40));
+}
+
+.palabra-levantada.peso-light .palabra-texto {
+  font-weight: 400 !important;
+  letter-spacing: 0.03em;
+  filter: drop-shadow(0 1px 2.5px rgba(0, 0, 0, 0.32));
 }
 
 .modo-enfoque .elemento-hover-elevado {
   opacity: 0 !important;
   transform: none !important;
-}
-
-.edificio-prisma polygon,
-.edificio-prisma line {
-  stroke-linejoin: round;
-  stroke-linecap: round;
 }
 
 /* ==========================================================================
@@ -479,7 +658,8 @@ html, body {
 .panel-info {
   position: absolute;
   top: 36px;
-  right: 140px;
+  right: 360px;
+  right: clamp(160px, 19vw, 380px);
   bottom: 36px;
   width: min(390px, calc(100vw - 48px));
   max-height: calc(100vh - 72px);
@@ -649,9 +829,21 @@ html, body {
 /* ==========================================================================
    RESPONSIVIDAD
    ========================================================================== */
+@media (max-width: 1440px) {
+  .panel-info {
+    right: clamp(120px, 16vw, 260px);
+  }
+}
+
 @media (max-width: 1280px) {
   .panel-info {
-    right: 48px;
+    right: clamp(80px, 11vw, 150px);
+  }
+}
+
+@media (max-width: 1024px) {
+  .panel-info {
+    right: 36px;
   }
 }
 
@@ -672,5 +864,15 @@ html, body {
     width: auto;
     max-height: 60vh;
     padding: 22px 20px;
+  }
+  .menu-kebab {
+    left: 14px;
+    top: 14px;
+    right: auto;
+    padding: 12px 6px;
+    gap: 12px;
+  }
+  .kebab-tooltip {
+    display: none;
   }
 }

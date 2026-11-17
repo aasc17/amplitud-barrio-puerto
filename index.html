@@ -10,14 +10,32 @@
   <!-- Tipografía global: Montserrat -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=menu-top-left" />
 </head>
 <body>
 
   <!-- ======================================================================
-       PANTALLA DE INTRODUCCIÓN (Páginas 2, 3 y 4 del PDF)
+       MENÚ FIJO KEBAB DE NAVEGACIÓN ENTRE PÁGINAS (Página 1, Página 2, Página 3)
+       ====================================================================== -->
+  <nav id="menu-kebab" class="menu-kebab" aria-label="Navegación entre páginas">
+    <button class="kebab-punto activo" data-pagina="1" aria-label="Página 1: Título">
+      <span class="kebab-circulo"></span>
+      <span class="kebab-tooltip">Página 1: Título</span>
+    </button>
+    <button class="kebab-punto" data-pagina="2" aria-label="Página 2: Pregunta y contexto">
+      <span class="kebab-circulo"></span>
+      <span class="kebab-tooltip">Página 2: Pregunta</span>
+    </button>
+    <button class="kebab-punto" data-pagina="3" aria-label="Página 3: Mapa interactivo">
+      <span class="kebab-circulo"></span>
+      <span class="kebab-tooltip">Página 3: Mapa</span>
+    </button>
+  </nav>
+
+  <!-- ======================================================================
+       PANTALLA DE INTRODUCCIÓN (Página 1: Título, Página 2: Pregunta + Texto)
        ====================================================================== -->
   <div id="pantalla-intro" class="pantalla-intro" aria-label="Introducción: Pasos por la Amplitud">
     <div class="intro-contenedor">
@@ -85,6 +103,18 @@
         </filter>
         <filter id="sombra-click" x="-30%" y="-30%" width="160%" height="160%">
           <feDropShadow dx="0" dy="16" stdDeviation="12" flood-color="rgba(0,0,0,0.42)" />
+        </filter>
+
+        <!-- Filtros para el levantamiento de palabras (onda/montaña con blur y sombras) -->
+        <filter id="blur-montana" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="4.5" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <filter id="sombra-palabra" x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="2.5" stdDeviation="3.5" flood-color="rgba(0,0,0,0.42)" />
         </filter>
       </defs>
 
@@ -298,7 +328,7 @@
           </g>
         </g>
 
-        <!-- Capa 6: Levantamientos 3D axonométricos de edificios (aparecen al apretar/presionar) -->
+        <!-- Capa 6: Levantamiento tipográfico y onda/montaña de palabras (aparecen al presionar) -->
         <g id="capa-edificios" class="capa-edificios"></g>
 
         <!-- Capa 7: Áreas interactivas para clic y hover -->
@@ -378,7 +408,7 @@
   <!-- ======================================================================
        LÓGICA JAVASCRIPT: ANIMACIONES, INTERACCIONES Y CÁMARA
        ====================================================================== -->
-  <script src="script.js"></script>
+  <script src="script.js?v=menu-top-left"></script>
 </body>
 </html>
 

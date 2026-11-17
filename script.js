@@ -118,35 +118,22 @@ const datosSectores = {
 };
 
 /* ==========================================================================
-   CONSTRUCCIÓN DE ELEMENTOS 3D AXONOMÉTRICOS DE EDIFICIOS
+   LEVANTAMIENTOS DE PALABRAS: ONDA / MONTAÑA TIPOGRÁFICA
+   "ahora ya no son edificios, ahora el levantamiento tienen que ser palabras,
+    bajo el mismo parámetro que antes, es decir la misma disposición que los
+    levantamientos de edificios pero con palabras, siguen apareciendo de a poco
+    y están bien optimizadas las animaciones para que carguen bien de forma fluida.
+    y para que las palabras se lean bien tienen que ser blancas (tipografía montserrat),
+    con fondo blur un poco transparente del color de cada calle haciendo una especie
+    de onda, montaña que tenga la forma que dan las diferentes alturas de las palabras.
+    las palabras van en bold las más repetidas, en light las menos repetidas y regular
+    las que están en medio."
    ========================================================================== */
 const SVG_NS = 'http://www.w3.org/2000/svg';
+const mapaSvg = document.getElementById('mapa-svg');
+const mapaContenido = document.getElementById('mapa-contenido');
 const capaEdificios = document.getElementById('capa-edificios');
 const mapaSectoresEdificios = new Map();
-
-function hexToRgb(hex) {
-  const c = hex.replace('#', '');
-  return [parseInt(c.substring(0, 2), 16), parseInt(c.substring(2, 4), 16), parseInt(c.substring(4, 6), 16)];
-}
-
-function paletaSector(hexColor) {
-  const [r, g, b] = hexToRgb(hexColor);
-  const rT = Math.min(255, Math.round(r + (255 - r) * 0.35));
-  const gT = Math.min(255, Math.round(g + (255 - g) * 0.35));
-  const bT = Math.min(255, Math.round(b + (255 - b) * 0.35));
-
-  return {
-    techo: `rgb(${rT}, ${gT}, ${bT})`,
-    bordeTecho: `rgba(${Math.round(r * 0.55)}, ${Math.round(g * 0.55)}, ${Math.round(b * 0.55)}, 0.95)`,
-    frente: `rgba(${r}, ${g}, ${b}, 0.78)`,
-    frenteStroke: `rgba(${Math.round(r * 0.55)}, ${Math.round(g * 0.55)}, ${Math.round(b * 0.55)}, 0.88)`,
-    lado: `rgba(${Math.round(r * 0.76)}, ${Math.round(g * 0.76)}, ${Math.round(b * 0.76)}, 0.84)`,
-    ladoStroke: `rgba(${Math.round(r * 0.45)}, ${Math.round(g * 0.45)}, ${Math.round(b * 0.45)}, 0.92)`,
-    trasera: `rgba(${Math.round(r * 0.85)}, ${Math.round(g * 0.85)}, ${Math.round(b * 0.85)}, 0.35)`,
-    huella: 'rgba(0, 0, 0, 0.14)',
-    arista: `rgba(${Math.round(r * 0.45)}, ${Math.round(g * 0.45)}, ${Math.round(b * 0.45)}, 0.92)`
-  };
-}
 
 function crearSVG(tag, attrs = {}) {
   const el = document.createElementNS(SVG_NS, tag);
@@ -154,219 +141,523 @@ function crearSVG(tag, attrs = {}) {
   return el;
 }
 
-function suma(p1, p2) { return { x: p1.x + p2.x, y: p1.y + p2.y }; }
-function por(p, s) { return { x: p.x * s, y: p.y * s }; }
-function fmt(p) { return `${p.x.toFixed(1)},${p.y.toFixed(1)}`; }
-function pts(...arr) { return arr.map(fmt).join(' '); }
+// Datos oficiales de palabras clave y cantidad de respuestas por sector
+// Datos oficiales de palabras clave y cantidad exacta de respuestas por sector (separadas, sin slash)
+const DATOS_ENCUESTA_PALABRAS = {
+  muelle: [
+    { palabras: ['Amplio', 'Amplitud'], valor: 7, peso: 'bold' },
+    { palabras: ['Mar'], valor: 7, peso: 'bold' },
+    { palabras: ['Vista'], valor: 7, peso: 'bold' },
+    { palabras: ['Abierto'], valor: 2, peso: 'light' },
+    { palabras: ['Libre'], valor: 2, peso: 'light' },
+    { palabras: ['Cielo'], valor: 2, peso: 'light' },
+    { palabras: ['Construcciones'], valor: 2, peso: 'light' }
+  ],
+  errazuriz: [
+    { palabras: ['Edificios'], valor: 10, peso: 'bold' },
+    { palabras: ['Ancho'], valor: 3, peso: 'regular' },
+    { palabras: ['Autos', 'Vehículos'], valor: 3, peso: 'regular' },
+    { palabras: ['Amplio'], valor: 2, peso: 'regular' },
+    { palabras: ['Cerrado'], valor: 2, peso: 'regular' },
+    { palabras: ['Vista'], valor: 2, peso: 'regular' },
+    { palabras: ['Angosto'], valor: 1, peso: 'light' }
+  ],
+  sotomayor: [
+    { palabras: ['Edificios'], valor: 6, peso: 'bold' },
+    { palabras: ['Despejado'], valor: 3, peso: 'regular' },
+    { palabras: ['Caminar'], valor: 3, peso: 'regular' },
+    { palabras: ['Amplio'], valor: 2, peso: 'regular' },
+    { palabras: ['Extenso'], valor: 2, peso: 'regular' },
+    { palabras: ['Espacioso'], valor: 2, peso: 'regular' },
+    { palabras: ['Feria'], valor: 1, peso: 'light' }
+  ],
+  monumento: [
+    { palabras: ['Edificios'], valor: 5, peso: 'bold' },
+    { palabras: ['Rodeado'], valor: 4, peso: 'regular' },
+    { palabras: ['Amplio'], valor: 3, peso: 'regular' },
+    { palabras: ['Abierto'], valor: 2, peso: 'regular' },
+    { palabras: ['Extenso'], valor: 1, peso: 'light' },
+    { palabras: ['Encerrado'], valor: 1, peso: 'light' }
+  ],
+  blanco: [
+    { palabras: ['Edificios'], valor: 14, peso: 'bold' },
+    { palabras: ['Cerca', 'Cercanos', 'Cercanía'], valor: 6, peso: 'bold' },
+    { palabras: ['Altos', 'Altas'], valor: 5, peso: 'regular' },
+    { palabras: ['Pasillo'], valor: 2, peso: 'regular' },
+    { palabras: ['Cerrado', 'Encerrado'], valor: 2, peso: 'regular' },
+    { palabras: ['Fachadas'], valor: 1, peso: 'light' },
+    { palabras: ['Oscura'], valor: 1, peso: 'light' }
+  ],
+  cochrane: [
+    { palabras: ['Estrecho', 'Angosto'], valor: 8, peso: 'bold' },
+    { palabras: ['Edificios'], valor: 7, peso: 'bold' },
+    { palabras: ['Cerca', 'Cercanos', 'Próximos'], valor: 6, peso: 'bold' },
+    { palabras: ['Pasillo'], valor: 1, peso: 'light' },
+    { palabras: ['Caminar'], valor: 1, peso: 'light' },
+    { palabras: ['Vehículos'], valor: 1, peso: 'light' }
+  ],
+  serrano: [
+    { palabras: ['Edificios'], valor: 6, peso: 'bold' },
+    { palabras: ['Fachadas'], valor: 3, peso: 'regular' },
+    { palabras: ['Angosto'], valor: 3, peso: 'regular' },
+    { palabras: ['Cerrado', 'Encerrado'], valor: 3, peso: 'regular' },
+    { palabras: ['Pasillo', 'Corredor'], valor: 2, peso: 'light' },
+    { palabras: ['Continuidad', 'Continua'], valor: 2, peso: 'light' },
+    { palabras: ['Altos', 'Altas'], valor: 2, peso: 'light' }
+  ],
+  echaurren: [
+    { palabras: ['Edificios'], valor: 8, peso: 'bold' },
+    { palabras: ['Amplio'], valor: 6, peso: 'bold' },
+    { palabras: ['Rodeado', 'Rodean'], valor: 5, peso: 'regular' },
+    { palabras: ['Abierto'], valor: 3, peso: 'regular' },
+    { palabras: ['Locales'], valor: 2, peso: 'regular' },
+    { palabras: ['Árboles'], valor: 2, peso: 'regular' },
+    { palabras: ['Espaciosa'], valor: 1, peso: 'light' },
+    { palabras: ['Extenso'], valor: 1, peso: 'light' }
+  ]
+};
 
 // ==========================================================================
-// PRISMAS 3D EXACTOS DE CALLE SERRANO (Página 5 del PDF original del proyecto)
-// Geometría vectorial pura idéntica a la lámina: 20 prismas ordenados N a S.
-// Caras: pared izquierda (#D3542C), pared derecha (#FF5E2C), techo (#FF9776).
+// LEVANTAMIENTO TIPOGRÁFICO: MONTAÑA CURVA ADAPTATIVA Y PALABRAS EN VERTICAL
+// "que el fondo de las palabras sea una montaña curva que se adapta a la forma
+//  de las palabras, las palabras deben ir paradas en vertical mezcladas utilizando
+//  los parámetros: en bold las más repetidas, en light las menos repetidas y regular
+//  las que están en medio... escritas hacia arriba de diferentes tamaños, más grandes
+//  las más repetidas y más pequeñas las menos repetidas, y no pueden salir de las
+//  montañas ya hechas, deben estar dentro."
 // ==========================================================================
-const PRISMAS_SERRANO_EXACTOS = [
-  { id: 160, row: 2, faces: [ { color: '#D3542C', points: '655.03,221.06 655.03,321.54 646.83,299.1 646.83,198.63' }, { color: '#FF5E2C', points: '662.42,210.78 662.42,311.25 655.03,321.54 655.03,221.06' }, { color: '#FF9776', points: '662.42,210.78 655.03,221.04 646.83,198.63 655.03,190.86' } ] },
-  { id: 53, row: 1, faces: [ { color: '#D3542C', points: '616.04,251.26 616.04,351.73 607.84,329.3 607.84,228.83' }, { color: '#FF5E2C', points: '623.43,240.97 623.43,341.44 616.04,351.73 616.04,251.26' }, { color: '#FF9776', points: '623.43,240.97 616.04,251.24 607.84,228.83 616.04,221.06' } ] },
-  { id: 150, row: 2, faces: [ { color: '#D3542C', points: '682.21,282.59 682.21,383.06 662.42,338.07 662.42,237.6' }, { color: '#FF5E2C', points: '689.61,272.3 689.61,372.77 682.21,383.06 682.21,282.59' }, { color: '#FF9776', points: '689.61,272.3 682.21,282.57 662.42,237.6 670.66,230.12' } ] },
-  { id: 41, row: 1, faces: [ { color: '#D3542C', points: '643.23,312.79 643.23,413.26 623.43,368.26 623.43,267.79' }, { color: '#FF5E2C', points: '650.62,302.5 650.62,402.97 643.23,413.26 643.23,312.79' }, { color: '#FF9776', points: '650.62,302.5 643.23,312.76 623.43,267.79 631.68,260.32' } ] },
-  { id: 155, row: 2, faces: [ { color: '#D3542C', points: '702.09,344.16 702.09,430.47 685.08,391.82 685.08,305.51' }, { color: '#FF5E2C', points: '708.44,335.32 708.44,421.63 702.09,430.47 702.09,344.16' }, { color: '#FF9776', points: '708.44,335.32 702.09,344.14 685.08,305.51 692.17,299.08' } ] },
-  { id: 48, row: 1, faces: [ { color: '#D3542C', points: '663.1,374.35 663.1,460.67 646.1,422.01 646.1,335.7' }, { color: '#FF5E2C', points: '669.45,365.52 669.45,451.83 663.1,460.67 663.1,374.35' }, { color: '#FF9776', points: '669.45,365.52 663.1,374.33 646.1,335.7 653.18,329.28' } ] },
-  { id: 165, row: 2, faces: [ { color: '#D3542C', points: '717.98,369.85 717.98,470.32 709.78,447.89 709.78,347.42' }, { color: '#FF5E2C', points: '725.38,359.57 725.38,460.04 717.98,470.32 717.98,369.85' }, { color: '#FF9776', points: '725.38,359.57 717.98,369.83 709.78,347.42 717.98,339.65' } ] },
-  { id: 58, row: 1, faces: [ { color: '#D3542C', points: '678.99,400.05 678.99,500.52 670.79,478.09 670.79,377.62' }, { color: '#FF5E2C', points: '686.39,389.76 686.39,490.23 678.99,500.52 678.99,400.05' }, { color: '#FF9776', points: '686.39,389.76 678.99,400.03 670.79,377.62 678.99,369.85' } ] },
-  { id: 195, row: 2, faces: [ { color: '#D3542C', points: '733.58,420.05 733.58,509.8 725.38,489.76 725.38,400' }, { color: '#FF5E2C', points: '740.97,410.86 740.97,500.61 733.58,509.8 733.58,420.05' }, { color: '#FF9776', points: '740.97,410.86 733.58,420.03 725.38,400 733.58,393.07' } ] },
-  { id: 170, row: 2, faces: [ { color: '#D3542C', points: '749.17,443.26 749.17,543.73 740.97,521.3 740.97,420.83' }, { color: '#FF5E2C', points: '756.56,432.97 756.56,533.44 749.17,543.73 749.17,443.26' }, { color: '#FF9776', points: '756.56,432.97 749.17,443.24 740.97,420.83 749.17,413.06' } ] },
-  { id: 88, row: 1, faces: [ { color: '#D3542C', points: '694.59,450.24 694.59,540 686.39,519.96 686.39,430.2' }, { color: '#FF5E2C', points: '701.98,441.05 701.98,530.81 694.59,540 694.59,450.24' }, { color: '#FF9776', points: '701.98,441.05 694.59,450.22 686.39,430.2 694.59,423.26' } ] },
-  { id: 63, row: 1, faces: [ { color: '#D3542C', points: '710.18,473.46 710.18,573.93 701.98,551.49 701.98,451.02' }, { color: '#FF5E2C', points: '717.57,463.17 717.57,563.64 710.18,573.93 710.18,473.46' }, { color: '#FF9776', points: '717.57,463.17 710.18,473.43 701.98,451.02 710.18,443.26' } ] },
-  { id: 175, row: 2, faces: [ { color: '#D3542C', points: '772.48,510.06 772.48,595.91 752.69,557.46 752.69,471.62' }, { color: '#FF5E2C', points: '779.88,501.27 779.88,587.12 772.48,595.91 772.48,510.06' }, { color: '#FF9776', points: '779.88,501.27 772.48,510.04 752.69,471.62 760.93,465.23' } ] },
-  { id: 68, row: 1, faces: [ { color: '#D3542C', points: '733.49,540.26 733.49,626.1 713.7,587.66 713.7,501.82' }, { color: '#FF5E2C', points: '740.89,531.47 740.89,617.31 733.49,626.1 733.49,540.26' }, { color: '#FF9776', points: '740.89,531.47 733.49,540.24 713.7,501.82 721.95,495.43' } ] },
-  { id: 180, row: 2, faces: [ { color: '#D3542C', points: '788.08,532.89 788.08,633.36 779.88,610.92 779.88,510.45' }, { color: '#FF5E2C', points: '795.47,522.6 795.47,623.07 788.08,633.36 788.08,532.89' }, { color: '#FF9776', points: '795.47,522.6 788.08,532.86 779.88,510.45 788.08,502.69' } ] },
-  { id: 73, row: 1, faces: [ { color: '#D3542C', points: '749.09,563.09 749.09,663.56 740.89,641.12 740.89,540.65' }, { color: '#FF5E2C', points: '756.48,552.8 756.48,653.27 749.09,663.56 749.09,563.09' }, { color: '#FF9776', points: '756.48,552.8 749.09,563.06 740.89,540.65 749.09,532.88' } ] },
-  { id: 185, row: 2, faces: [ { color: '#D3542C', points: '810.96,596.39 810.96,678.19 791.16,641.56 791.16,559.76' }, { color: '#FF5E2C', points: '818.35,588.02 818.35,669.81 810.96,678.19 810.96,596.39' }, { color: '#FF9776', points: '818.35,588.02 810.96,596.37 791.16,559.76 799.41,553.67' } ] },
-  { id: 78, row: 1, faces: [ { color: '#D3542C', points: '771.97,626.59 771.97,708.39 752.17,671.75 752.17,589.96' }, { color: '#FF5E2C', points: '779.36,618.21 779.36,700.01 771.97,708.39 771.97,626.59' }, { color: '#FF9776', points: '779.36,618.21 771.97,626.57 752.17,589.96 760.42,583.87' } ] },
-  { id: 190, row: 2, faces: [ { color: '#D3542C', points: '835.92,636.72 835.92,722.56 816.12,684.12 816.12,598.28' }, { color: '#FF5E2C', points: '843.31,627.93 843.31,713.77 835.92,722.56 835.92,636.72' }, { color: '#FF9776', points: '843.31,627.93 835.92,636.7 816.12,598.28 824.37,591.89' } ] },
-  { id: 83, row: 1, faces: [ { color: '#D3542C', points: '796.93,666.92 796.93,752.76 777.13,714.32 777.13,628.47' }, { color: '#FF5E2C', points: '804.32,658.12 804.32,743.97 796.93,752.76 796.93,666.92' }, { color: '#FF9776', points: '804.32,658.12 796.93,666.89 777.13,628.47 785.38,622.08' } ] },
-];
 
-// Generar prismas para cada sector
-Object.keys(datosSectores).forEach(id => {
-  const sec = datosSectores[id];
-  const gSector = crearSVG('g', { class: 'grupo-edificios-sector', 'data-sector': id });
-  const prismas = [];
+// Función para intercalar armónicamente las palabras según encuesta
+// Creando el patrón rítmico de onda: Cima (bold) -> Bajada (regular) -> Valle (light) -> Subida (regular)
+function generarSecuenciaPalabrasOnda(id, ladoIdx, numPuntos) {
+  const def = DATOS_ENCUESTA_PALABRAS[id];
+  if (!def) return [];
 
-  // 1. Calle Serrano: usar los 20 prismas vectoriales exactos del PDF
-  if (id === 'serrano') {
-    PRISMAS_SERRANO_EXACTOS.forEach((p, idx) => {
-      const gEd = crearSVG('g', { class: 'edificio-prisma', 'data-id': p.id, 'data-row': p.row });
-      gEd.style.transitionDelay = `${idx * 40}ms`;
+  const boldWords = [];
+  const regularWords = [];
+  const lightWords = [];
 
-      p.faces.forEach(f => {
-        gEd.appendChild(crearSVG('polygon', {
-          points: f.points,
-          fill: f.color,
-          stroke: 'rgba(255, 255, 255, 0.25)',
-          'stroke-width': '0.5',
-          'stroke-linejoin': 'round'
-        }));
-      });
-
-      gSector.appendChild(gEd);
-      prismas.push(gEd);
+  def.forEach(item => {
+    item.palabras.forEach(w => {
+      const obj = { texto: w, valor: item.valor, peso: item.peso };
+      if (item.peso === 'bold') boldWords.push(obj);
+      else if (item.peso === 'regular') regularWords.push(obj);
+      else lightWords.push(obj);
     });
-
-    gSector._prismas = prismas;
-    capaEdificios.appendChild(gSector);
-    mapaSectoresEdificios.set(id, gSector);
-    return;
-  }
-
-  // 2. Para los demás sectores (Cochrane, Blanco, Errázuriz, Plazas):
-  // Generar prismas axonométricos con la misma proyección isométrica (extrusión vertical dy = -H)
-  const pal = paletaSector(sec.color);
-  const ratioContencion = sec.contencion / TOTAL_ENCUESTAS;
-  const altura = Math.round(24 + 70 * ratioContencion);
-  const variaciones = [0.94, 1.06, 0.88, 1.12, 0.96, 1.04];
-  const modelos = [];
-
-  if (sec.tipoGeom === 'calle') {
-    const hit = document.querySelector(`.hit-interactivo[data-sector="${id}"]`);
-    if (hit && hit.getTotalLength) {
-      const totalL = hit.getTotalLength();
-      const margen = Math.min(32, totalL * 0.08);
-      const tramo = totalL - 2 * margen;
-      const numEdificios = Math.max(5, Math.round(5 + 6 * ratioContencion));
-      const paso = tramo / numEdificios;
-
-      // Determinación precisa del ancho de calzada según sector
-      const anchoMitad = id === 'errazuriz' ? 42 : 20;
-
-      for (let i = 0; i < numEdificios; i++) {
-        const d = margen + (i + 0.5) * paso;
-        const p = hit.getPointAtLength(d);
-        const pAnt = hit.getPointAtLength(Math.max(0, d - 8));
-        const pSig = hit.getPointAtLength(Math.min(totalL, d + 8));
-        const ang = Math.atan2(pSig.y - pAnt.y, pSig.x - pAnt.x);
-        const tang = { x: Math.cos(ang), y: Math.sin(ang) };
-        const normal = { x: -tang.y, y: tang.x };
-
-        const largoEd = Math.round(18 * (0.92 + (i % 3) * 0.08));
-        const fondo = 14;
-
-        [-1, 1].forEach((lado, lIdx) => {
-          // Base posicionada exactamente en la fachada/borde de la vereda
-          const distCentro = lado * (anchoMitad + fondo / 2);
-          const centro = suma(p, por(normal, distCentro));
-          const eje = por(tang, largoEd / 2);
-          const lateral = por(normal, fondo / 2);
-          modelos.push({
-            a: suma(suma(centro, por(eje, -1)), por(lateral, -1)),
-            b: suma(suma(centro, eje), por(lateral, -1)),
-            c: suma(suma(centro, eje), lateral),
-            d: suma(suma(centro, por(eje, -1)), lateral),
-            centro,
-            altura: altura * variaciones[(i + lIdx * 3) % variaciones.length]
-          });
-        });
-      }
-    }
-  } else if (id === 'muelle') {
-    // Muelle Prat: Exactamente dos edificios en la entrada angosta (un poco más adentro, donde marcó el usuario en la imagen)
-    const p1 = { x: 1195, y: 550 };
-    const p2 = { x: 1215, y: 610 };
-    const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-    const tang = { x: (p2.x - p1.x) / dist, y: (p2.y - p1.y) / dist };
-    const normal = { x: -tang.y, y: tang.x };
-    const num = 2; // Exactamente dos edificios
-
-    for (let i = 0; i < num; i++) {
-      const t = (i + 0.5) / num;
-      const p = { x: p1.x + (p2.x - p1.x) * t, y: p1.y + (p2.y - p1.y) * t };
-      const largoEd = 15;
-      const fondo = 12;
-      const centro = p; // Ubicados directamente en la entrada angosta marcada
-      const eje = por(tang, largoEd / 2);
-      const lateral = por(normal, fondo / 2);
-      modelos.push({
-        a: suma(suma(centro, por(eje, -1)), por(lateral, -1)),
-        b: suma(suma(centro, eje), por(lateral, -1)),
-        c: suma(suma(centro, eje), lateral),
-        d: suma(suma(centro, por(eje, -1)), lateral),
-        centro,
-        altura: 28
-      });
-    }
-  } else if (sec.guias) {
-    sec.guias.forEach((segmento, sIdx) => {
-      const p1 = { x: segmento[0][0], y: segmento[0][1] };
-      const p2 = { x: segmento[1][0], y: segmento[1][1] };
-      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-      const num = Math.max(2, Math.round(dist / 44));
-      const tang = { x: (p2.x - p1.x) / dist, y: (p2.y - p1.y) / dist };
-      const normal = { x: -tang.y, y: tang.x };
-
-      for (let i = 0; i < num; i++) {
-        const t = (i + 0.5) / num;
-        const p = { x: p1.x + (p2.x - p1.x) * t, y: p1.y + (p2.y - p1.y) * t };
-        const largoEd = 16;
-        const fondo = 12;
-        const centro = suma(p, por(normal, 16));
-        const eje = por(tang, largoEd / 2);
-        const lateral = por(normal, fondo / 2);
-        modelos.push({
-          a: suma(suma(centro, por(eje, -1)), por(lateral, -1)),
-          b: suma(suma(centro, eje), por(lateral, -1)),
-          c: suma(suma(centro, eje), lateral),
-          d: suma(suma(centro, por(eje, -1)), lateral),
-          centro,
-          altura: altura * variaciones[(i + sIdx * 2) % variaciones.length]
-        });
-      }
-    });
-  }
-
-  // Ordenar de norte a sur para perspectiva axonométrica correcta
-  modelos.sort((m1, m2) => m1.centro.y - m2.centro.y);
-
-  modelos.forEach((m, idx) => {
-    const gEd = crearSVG('g', { class: 'edificio-prisma' });
-    gEd.style.transitionDelay = `${idx * 40}ms`;
-
-    const h = m.altura;
-    const basePts = [m.a, m.b, m.c, m.d];
-    const arriba = { x: 0, y: -h };
-    const topPts = [suma(m.a, arriba), suma(m.b, arriba), suma(m.c, arriba), suma(m.d, arriba)];
-
-    // Caras frontales / laterales
-    for (let i = 0; i < 4; i++) {
-      const sig = (i + 1) % 4;
-      const pA = basePts[i], pB = basePts[sig];
-      const dx = pB.x - pA.x, dy = pB.y - pA.y;
-      if (dx < -0.05 || dy > 0.05) {
-        const tA = topPts[i], tB = topPts[sig];
-        const esLuz = dy < 0;
-        gEd.appendChild(crearSVG('polygon', {
-          points: pts(pA, pB, tB, tA),
-          fill: esLuz ? pal.frente : pal.lado,
-          stroke: 'rgba(255, 255, 255, 0.25)',
-          'stroke-width': '0.5',
-          'stroke-linejoin': 'round'
-        }));
-      }
-    }
-
-    // Techo
-    gEd.appendChild(crearSVG('polygon', {
-      points: pts(...topPts),
-      fill: pal.techo,
-      stroke: 'rgba(255, 255, 255, 0.35)',
-      'stroke-width': '0.5',
-      'stroke-linejoin': 'round'
-    }));
-
-    gSector.appendChild(gEd);
-    prismas.push(gEd);
   });
 
-  gSector._prismas = prismas;
+  // Ordenar por cantidad de votos de mayor a menor
+  boldWords.sort((a, b) => b.valor - a.valor);
+  regularWords.sort((a, b) => b.valor - a.valor);
+  lightWords.sort((a, b) => b.valor - a.valor);
+
+  // Fallbacks seguros si alguna categoría está vacía en algún sector
+  const poolBold = boldWords.length > 0 ? boldWords : (regularWords.length > 0 ? regularWords : lightWords);
+  const poolRegular = regularWords.length > 0 ? regularWords : (lightWords.length > 0 ? lightWords : poolBold);
+  const poolLight = lightWords.length > 0 ? lightWords : (regularWords.length > 0 ? regularWords : poolBold);
+
+  const resultado = [];
+  // Desfase de fase en el lado opuesto de la calle para crear un contrapunto visual orgánico
+  const offsetFase = ladoIdx === 1 ? 2 : 0;
+
+  for (let k = 0; k < numPuntos; k++) {
+    const paso = (k + offsetFase) % 4;
+    let palabra;
+    if (paso === 0) {
+      // Cima de la montaña: palabra en bold más repetida
+      palabra = poolBold[(Math.floor(k / 4) + ladoIdx) % poolBold.length];
+    } else if (paso === 2) {
+      // Valle de la montaña: palabra en light menos repetida
+      palabra = poolLight[(Math.floor(k / 4) + ladoIdx) % poolLight.length];
+    } else {
+      // Pendiente intermedia: palabra regular
+      palabra = poolRegular[(k + ladoIdx) % poolRegular.length];
+    }
+    resultado.push(palabra);
+  }
+
+  return resultado;
+}
+
+// Muestreo preciso de puntos sobre la acera de una calle en distancia d
+function getSidewalkPointCalle(hit, totalL, d, ladoSign, offsetLateral) {
+  const dClamped = Math.max(0, Math.min(totalL, d));
+  const p = hit.getPointAtLength(dClamped);
+  const pAnt = hit.getPointAtLength(Math.max(0, dClamped - 4));
+  const pSig = hit.getPointAtLength(Math.min(totalL, dClamped + 4));
+  const ang = Math.atan2(pSig.y - pAnt.y, pSig.x - pAnt.x);
+  const nx = -Math.sin(ang);
+  const ny = Math.cos(ang);
+  return {
+    x: p.x + ladoSign * nx * offsetLateral,
+    y: p.y + ladoSign * ny * offsetLateral,
+    ang: ang
+  };
+}
+
+// Guías base de plazas y áreas
+function getAreaGuidePoints(id, ladoSign) {
+  let p1, p2;
+  if (id === 'sotomayor') {
+    if (ladoSign === -1) {
+      p1 = { x: 790, y: 760 }; p2 = { x: 1010, y: 670 };
+    } else {
+      p1 = { x: 840, y: 910 }; p2 = { x: 1060, y: 775 };
+    }
+  } else if (id === 'monumento') {
+    if (ladoSign === -1) {
+      p1 = { x: 990, y: 685 }; p2 = { x: 1065, y: 775 };
+    } else {
+      p1 = { x: 1070, y: 620 }; p2 = { x: 1145, y: 715 };
+    }
+  } else if (id === 'muelle') {
+    if (ladoSign === -1) {
+      p1 = { x: 1160, y: 610 }; p2 = { x: 1270, y: 360 };
+    } else {
+      p1 = { x: 1220, y: 645 }; p2 = { x: 1330, y: 410 };
+    }
+  } else if (id === 'echaurren') {
+    if (ladoSign === -1) {
+      p1 = { x: 520, y: 280 }; p2 = { x: 740, y: 180 };
+    } else {
+      p1 = { x: 540, y: 350 }; p2 = { x: 760, y: 250 };
+    }
+  } else {
+    p1 = { x: 700, y: 500 }; p2 = { x: 800, y: 500 };
+  }
+  return { p1, p2 };
+}
+
+// Muestreo lineal en plazas o áreas
+function getSidewalkPointArea(p1, p2, t) {
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+  return {
+    x: p1.x + dx * t,
+    y: p1.y + dy * t,
+    ang: Math.atan2(dy, dx)
+  };
+}
+
+// Curva Bézier cúbica suave continua que modela la silueta curva de la montaña
+function splineCurvaMontaña(pts) {
+  if (pts.length < 2) return '';
+  let d = '';
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = i > 0 ? pts[i - 1] : pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = i < pts.length - 2 ? pts[i + 2] : p2;
+
+    const dx = p2.x - p1.x;
+
+    // Tangentes cúbicas amortiguadas para que la curva no cree caídas bruscas entre cumbres
+    const cp1x = p1.x + dx * 0.36;
+    const cp1y = p1.y + (p2.y - p0.y) * 0.22;
+    const cp2x = p2.x - dx * 0.36;
+    const cp2y = p2.y - (p3.y - p1.y) * 0.22;
+
+    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+
+// Crear gradientes en <defs> para el fondo transparente con color de cada calle
+const defsSvg = mapaSvg.querySelector('defs') || mapaSvg.insertBefore(crearSVG('defs'), mapaSvg.firstChild);
+
+Object.keys(datosSectores).forEach(id => {
+  const sec = datosSectores[id];
+  const ratioCont = sec.contencion / TOTAL_ENCUESTAS;
+  const gradId = `grad-montana-${id}`;
+  if (!document.getElementById(gradId)) {
+    const grad = crearSVG('linearGradient', {
+      id: gradId,
+      x1: '0%', y1: '0%', x2: '0%', y2: '100%'
+    });
+    const opTop = (0.78 + 0.18 * ratioCont).toFixed(2);
+    const opMid = (0.48 + 0.32 * ratioCont).toFixed(2);
+    const opBot = (0.16 + 0.20 * ratioCont).toFixed(2);
+
+    grad.appendChild(crearSVG('stop', { offset: '0%', 'stop-color': sec.color, 'stop-opacity': opTop }));
+    grad.appendChild(crearSVG('stop', { offset: '65%', 'stop-color': sec.color, 'stop-opacity': opMid }));
+    grad.appendChild(crearSVG('stop', { offset: '100%', 'stop-color': sec.color, 'stop-opacity': opBot }));
+    defsSvg.appendChild(grad);
+  }
+});
+
+// Construir la montaña curva y las palabras paradas en vertical
+function crearLevantamientoLado(gOndas, gPalabras, sec, id, ladoIdx, ladoSign, ratioContencion) {
+  let hit = null;
+  let totalL = 0;
+  let dStart = 0;
+  let dEnd = 0;
+  let usableL = 0;
+  let offsetLateral = 24;
+  let p1Area = null, p2Area = null;
+
+  if (sec.tipoGeom === 'calle') {
+    hit = document.querySelector(`.hit-interactivo[data-sector="${id}"]`);
+    if (!hit || !hit.getTotalLength) return;
+    totalL = hit.getTotalLength();
+    const startRatio = id === 'errazuriz' ? 0.08 : 0.03;
+    const endRatio = id === 'errazuriz' ? 0.88 : 0.97;
+    dStart = totalL * startRatio;
+    dEnd = totalL * endRatio;
+    usableL = dEnd - dStart;
+    offsetLateral = id === 'errazuriz' ? 46 : (id === 'serrano' ? 26 : 24);
+  } else {
+    const guides = getAreaGuidePoints(id, ladoSign);
+    p1Area = guides.p1;
+    p2Area = guides.p2;
+    usableL = Math.hypot(p2Area.x - p1Area.x, p2Area.y - p1Area.y);
+  }
+
+  if (usableL < 40) return;
+
+  // Cantidad óptima de puntos para que las palabras tengan espacio horizontal cómodo
+  // y nunca choquen entre sí
+  let numPuntos;
+  if (id === 'errazuriz') {
+    numPuntos = 16;
+  } else if (id === 'blanco') {
+    numPuntos = 14;
+  } else if (id === 'serrano' || id === 'cochrane') {
+    numPuntos = 12;
+  } else if (id === 'monumento') {
+    numPuntos = 5;
+  } else {
+    numPuntos = Math.max(4, Math.min(10, Math.round(usableL / 28)));
+  }
+
+  const palabrasLado = generarSecuenciaPalabrasOnda(id, ladoIdx, numPuntos);
+  if (!palabrasLado || palabrasLado.length === 0) return;
+
+  const minVal = Math.min(...palabrasLado.map(p => p.valor));
+  const maxVal = Math.max(...palabrasLado.map(p => p.valor));
+  const spanVal = (maxVal - minVal) || 1;
+
+  // Muestreo equidistante de puntos base en la acera
+  const basePts = [];
+  for (let i = 0; i < numPuntos; i++) {
+    const t = numPuntos === 1 ? 0.5 : i / (numPuntos - 1);
+    let pt;
+    if (sec.tipoGeom === 'calle') {
+      pt = getSidewalkPointCalle(hit, totalL, dStart + t * usableL, ladoSign, offsetLateral);
+    } else {
+      pt = getSidewalkPointArea(p1Area, p2Area, t);
+    }
+    basePts.push(pt);
+  }
+
+  const topPts = [];
+  const datosPalabras = [];
+
+  for (let i = 0; i < numPuntos; i++) {
+    const p = palabrasLado[i];
+    const valNorm = (p.valor - minVal) / spanVal;
+
+    // Jerarquía visual tipográfica: bold más grandes, regular medianas, light más pequeñas
+    let fontSize;
+    if (p.peso === 'bold') {
+      fontSize = Math.round(11.5 + 3.0 * ratioContencion + 1.5 * valNorm);
+    } else if (p.peso === 'regular') {
+      fontSize = Math.round(9.2 + 2.0 * ratioContencion + 0.8 * valNorm);
+    } else {
+      fontSize = Math.round(7.6 + 1.2 * ratioContencion);
+    }
+    fontSize = Math.max(fontSize, 7.2);
+
+    // Longitud física del texto vertical hacia arriba
+    const charW = fontSize * 0.70;
+    const largoTexto = Math.round(p.texto.length * charW);
+
+    // Márgenes superior e inferior dentro de la montaña
+    const margenBase = Math.round(5 + 4 * ratioContencion);
+    // Margen superior holgado garantizado para que el texto NUNCA toque la cresta de la montaña
+    const margenCresta = Math.round(18 + 18 * ratioContencion);
+
+    const hMinWord = largoTexto + margenBase + margenCresta;
+    const hContencion = Math.round(28 + 65 * Math.pow(ratioContencion, 0.85) + (14 + 18 * ratioContencion) * valNorm);
+    const h = Math.max(hContencion, hMinWord);
+
+    const B = basePts[i];
+    const T = { x: B.x, y: B.y - h };
+    topPts.push(T);
+
+    // Ángulo e inclinación isométrica exacta según la calzada en el punto B (estilo afiche "UPON GRACE")
+    const streetAng = B.ang !== undefined ? B.ang : Math.PI / 3;
+    let crossAng = (sec.tipoGeom === 'calle') ? (streetAng - Math.PI / 2) : streetAng;
+    while (crossAng > Math.PI / 2) crossAng -= Math.PI;
+    while (crossAng < -Math.PI / 2) crossAng += Math.PI;
+
+    // Coseno y seno acotados para garantizar legibilidad óptima y proporción condensada del afiche "GRACE"
+    let cosA = Math.max(0.74, Math.abs(Math.cos(crossAng)));
+    let sinA = Math.sin(crossAng);
+    sinA = Math.max(-0.46, Math.min(0.46, sinA));
+
+    // Proporción condensada estilizada estilo afiche "UPON GRACE" (scaleW = 0.84)
+    const scaleW = 0.84;
+    const cMat = (cosA * scaleW).toFixed(5);
+    const dMat = (sinA * scaleW).toFixed(5);
+
+    datosPalabras.push({
+      p,
+      fontSize,
+      largoTexto,
+      margenBase,
+      B,
+      T,
+      h,
+      cMat,
+      dMat
+    });
+  }
+
+  // Puntos suaves en los extremos para anclar la montaña curva a la calzada
+  const vStart = { x: basePts[0].x - basePts[1].x, y: basePts[0].y - basePts[1].y };
+  const distS = Math.hypot(vStart.x, vStart.y) || 1;
+  const TStart = { x: basePts[0].x + (vStart.x / distS) * 20, y: basePts[0].y + (vStart.y / distS) * 20 };
+
+  const vEnd = { x: basePts[numPuntos - 1].x - basePts[numPuntos - 2].x, y: basePts[numPuntos - 1].y - basePts[numPuntos - 2].y };
+  const distE = Math.hypot(vEnd.x, vEnd.y) || 1;
+  const TEnd = { x: basePts[numPuntos - 1].x + (vEnd.x / distE) * 20, y: basePts[numPuntos - 1].y + (vEnd.y / distE) * 20 };
+
+  // Silueta de la montaña curva que se adapta a la forma dada por las diferentes alturas de las palabras
+  const dCresta = `M ${TStart.x.toFixed(1)} ${TStart.y.toFixed(1)}` + splineCurvaMontaña([TStart, ...topPts, TEnd]);
+  const baseRev = [TEnd, ...basePts.slice().reverse(), TStart];
+  const dMontana = dCresta + splineCurvaMontaña(baseRev) + ' Z';
+
+  // ID único de clip-path para asegurar que las palabras queden 100% dentro de la montaña curva
+  const clipId = `clip-montana-${id}-${ladoIdx}`;
+  let clipEl = document.getElementById(clipId);
+  if (!clipEl) {
+    clipEl = crearSVG('clipPath', { id: clipId });
+    defsSvg.appendChild(clipEl);
+  }
+  while (clipEl.firstChild) clipEl.removeChild(clipEl.firstChild);
+  clipEl.appendChild(crearSVG('path', { d: dMontana }));
+
+  // Capa 1: Fondo blur translúcido del color del sector
+  const pathBlur = crearSVG('path', {
+    class: 'montana-onda-blur',
+    d: dMontana,
+    fill: `url(#grad-montana-${id})`,
+    filter: 'url(#blur-montana)',
+    stroke: 'none'
+  });
+  gOndas.appendChild(pathBlur);
+
+  // Capa 2: Frente nítido translúcido del color del sector
+  const pathFrente = crearSVG('path', {
+    class: 'montana-onda-frente',
+    d: dMontana,
+    fill: `url(#grad-montana-${id})`,
+    stroke: 'none'
+  });
+  gOndas.appendChild(pathFrente);
+
+  // Contenedor de palabras de este lado, vinculado estrictamente al clipPath de la montaña curva
+  const gPalabrasLado = crearSVG('g', {
+    class: 'contenedor-palabras-lado',
+    'clip-path': `url(#${clipId})`
+  });
+
+  // Palabras PARADAS EN VERTICAL dentro de la montaña curva, escritas hacia arriba
+  for (let i = 0; i < numPuntos; i++) {
+    const item = datosPalabras[i];
+    const p = item.p;
+
+    // Base del texto parado en vertical: empieza en B.y - margenBase y sube verticalmente hacia la cresta
+    const yBase = item.B.y - item.margenBase;
+
+    // Matriz de proyección isométrica: dirección 100% vertical hacia arriba (0, -1)
+    // y trazos transversales/línea base acompañando la pendiente exacta de la calzada (cMat, dMat)
+    const gWordPos = crearSVG('g', {
+      class: 'posicion-palabra',
+      transform: `matrix(0, -1, ${item.cMat}, ${item.dMat}, ${item.B.x.toFixed(1)}, ${yBase.toFixed(1)})`
+    });
+
+    // Elemento animado individual (escalonado con GPU)
+    const gWordAnim = crearSVG('g', {
+      class: `palabra-levantada peso-${p.peso}`
+    });
+    gWordAnim.style.transitionDelay = `${(ladoIdx * 2 + (i % 8)) * 35 + 40}ms`;
+
+    // Texto en Montserrat blanco puro (#ffffff) parado en vertical (SIN NÚMERO Y CON CONTRASTE VECTORIAL)
+    const txt = crearSVG('text', {
+      class: 'palabra-texto',
+      x: '0',
+      y: '0',
+      fill: '#ffffff',
+      'text-anchor': 'start',
+      'dominant-baseline': 'central',
+      'font-family': "'Montserrat', sans-serif",
+      'font-size': `${item.fontSize}px`,
+      'font-weight': p.peso === 'bold' ? '900' : (p.peso === 'regular' ? '600' : '400'),
+      'letter-spacing': '0.08em'
+    });
+    txt.textContent = p.texto.toUpperCase();
+
+    gWordAnim.appendChild(txt);
+    gWordPos.appendChild(gWordAnim);
+    gPalabrasLado.appendChild(gWordPos);
+  }
+
+  gPalabras.appendChild(gPalabrasLado);
+}
+
+// Construir el levantamiento tipográfico bilateral para cada sector
+// Según las respuestas de las encuestas: mientras más contención más alto y más lleno, mientras más apertura más bajo
+Object.keys(datosSectores).forEach(id => {
+  const sec = datosSectores[id];
+  const gSector = crearSVG('g', { class: 'grupo-levantamiento-sector', 'data-sector': id });
+
+  // Contenedor de las ondas montañosas (capa de fondo)
+  const gOndas = crearSVG('g', { class: 'contenedor-ondas' });
+  // Contenedor de las palabras (capa superior)
+  const gPalabras = crearSVG('g', { class: 'contenedor-palabras' });
+
+  gSector.appendChild(gOndas);
+  gSector.appendChild(gPalabras);
+
+  // Ratio oficial de contención (0.0 en Muelle Prat hasta 1.0 en Serrano)
+  const ratioContencion = sec.contencion / TOTAL_ENCUESTAS;
+
+  // Más lleno: mayor opacidad y densidad visual mientras mayor sea la contención
+  const opacidadFrente = (0.35 + 0.50 * ratioContencion).toFixed(2);
+  const opacidadBlur = (0.25 + 0.45 * ratioContencion).toFixed(2);
+  gSector.style.setProperty('--opacidad-frente', opacidadFrente);
+  gSector.style.setProperty('--opacidad-blur', opacidadBlur);
+
+  const lados = [
+    { ladoIdx: 0, ladoSign: -1 },
+    { ladoIdx: 1, ladoSign: 1 }
+  ];
+
+  // Calcular Y promedio para ordenar en profundidad (fondo primero, frente después)
+  lados.forEach(ld => {
+    let pMid;
+    if (sec.tipoGeom === 'calle') {
+      const hit = document.querySelector(`.hit-interactivo[data-sector="${id}"]`);
+      if (hit && hit.getTotalLength) {
+        const totalL = hit.getTotalLength();
+        const offsetLat = id === 'errazuriz' ? 46 : (id === 'serrano' ? 26 : 24);
+        pMid = getSidewalkPointCalle(hit, totalL, totalL * 0.5, ld.ladoSign, offsetLat);
+      }
+    } else {
+      const guides = getAreaGuidePoints(id, ld.ladoSign);
+      pMid = { x: (guides.p1.x + guides.p2.x) / 2, y: (guides.p1.y + guides.p2.y) / 2 };
+    }
+    ld.avgY = pMid ? pMid.y : 0;
+  });
+
+  lados.sort((a, b) => a.avgY - b.avgY);
+
+  // Generar la montaña curva y palabras paradas en vertical en ambos lados
+  lados.forEach(ld => {
+    crearLevantamientoLado(gOndas, gPalabras, sec, id, ld.ladoIdx, ld.ladoSign, ratioContencion);
+  });
+
   capaEdificios.appendChild(gSector);
   mapaSectoresEdificios.set(id, gSector);
 });
@@ -374,11 +665,8 @@ Object.keys(datosSectores).forEach(id => {
 /* ==========================================================================
    SISTEMA DE CÁMARA (ZOOM Y PAN FLUIDO CON INTERPOLACIÓN SUAVE)
    ========================================================================== */
-const mapaSvg = document.getElementById('mapa-svg');
-const mapaContenido = document.getElementById('mapa-contenido');
-
 const PIVOT_BASE = 960;
-const PIVOT_ZOOM = 690; // Centra el mapa en el espacio despejado a la izquierda del panel de información (right: 140px)
+const PIVOT_ZOOM = 690; // Centra el mapa en el espacio despejado a la izquierda del panel de información
 
 const VISTA_BASE = { x: 960, y: 540, zoom: 1.0, pivotX: PIVOT_BASE };
 let camActual = { x: 960, y: 540, zoom: 1.0, pivotX: PIVOT_BASE };
@@ -561,7 +849,7 @@ function seleccionarSector(secId) {
   // 3. Zoom automático hacia esa zona
   animarHacia(sec.enfoque.x, sec.enfoque.y, sec.enfoque.zoom);
 
-  // 4. Mostrar edificios uno por uno fluidamente
+  // 4. Mostrar levantamiento de palabras y onda/montaña fluidamente
   const gEd = mapaSectoresEdificios.get(secId);
   if (gEd) {
     setTimeout(() => {
@@ -651,12 +939,11 @@ window.addEventListener('keydown', (e) => {
 });
 
 /* ==========================================================================
-   SECUENCIA DE INTRODUCCIÓN CON PASOS (Páginas 2 -> 3 -> 4 -> 1)
-   - Página 2: Inicia limpia con el título "Pasos por la Amplitud".
-   - Aparecen los pasos y caminan hasta la esquina inferior derecha.
-   - Lleva a la siguiente página (Página 3: Pregunta).
-   - Unos segundos después la pregunta sube y aparece el texto (Página 4).
-   - Los pasos siguen avanzando hasta la esquina inferior derecha y dan paso al mapa (Página 1).
+   SECUENCIA DE INTRODUCCIÓN Y CONTROL DE PÁGINAS (Páginas 1, 2 y 3)
+   - Página 1: Título ("Pasos por la Amplitud")
+   - Página 2: Pregunta y Subtítulo juntos (con animación coordinada)
+   - Página 3: Mapa interactivo (pantalla principal)
+   - Menú fijo kebab interactivo (una bolita por página) con tiempos extendidos
    ========================================================================== */
 const pantallaIntro = document.getElementById('pantalla-intro');
 const vistaP2 = document.getElementById('vista-p2');
@@ -664,8 +951,14 @@ const vistaP3P4 = document.getElementById('vista-p3-p4');
 const introPregunta = document.getElementById('intro-pregunta');
 const introSubtitulo = document.getElementById('intro-subtitulo');
 const svgHuellas = document.getElementById('svg-huellas');
+const menuKebab = document.getElementById('menu-kebab');
+const puntosKebab = menuKebab ? menuKebab.querySelectorAll('.kebab-punto') : [];
 
 let introActiva = true;
+let paginaActual = 1;
+let timerAutoAvance = null;
+let timerPasosP1 = null;
+let timerPasosP2 = null;
 
 // Crear huellas a lo largo de una trayectoria diagonal de esquina a esquina
 function crearRutaHuellas(numPasos, inicioX, inicioY, finX, finY) {
@@ -731,88 +1024,156 @@ function crearRutaHuellas(numPasos, inicioX, inicioY, finX, finY) {
   return elems;
 }
 
-// 1. Huellas de la Pantalla 2 (recorrido desde la esquina superior izquierda bajando hacia la esquina inferior derecha)
-const huellasP2 = crearRutaHuellas(16, 70, 50, 1850, 1030);
+// 1. Huellas de la Página 1 (recorrido diagonal de esquina a esquina)
+const huellasP1 = crearRutaHuellas(16, 70, 50, 1850, 1030);
 
-// 2. Huellas de la Pantalla 3 y 4 (segundo tramo que sale de la pantalla hacia el mapa)
-const huellasP3P4 = crearRutaHuellas(16, 70, 50, 1870, 1050);
+// 2. Huellas de la Página 2 (recorrido diagonal hacia la salida al mapa)
+const huellasP2 = crearRutaHuellas(16, 70, 50, 1870, 1050);
+
+function actualizarKebab(numPagina) {
+  paginaActual = numPagina;
+  puntosKebab.forEach(p => {
+    const pag = parseInt(p.dataset.pagina, 10);
+    if (pag === numPagina) {
+      p.classList.add('activo');
+      p.setAttribute('aria-current', 'page');
+    } else {
+      p.classList.remove('activo');
+      p.removeAttribute('aria-current');
+    }
+  });
+}
+
+function limpiarTimersIntro() {
+  if (timerAutoAvance) { clearTimeout(timerAutoAvance); timerAutoAvance = null; }
+  if (timerPasosP1) { clearTimeout(timerPasosP1); timerPasosP1 = null; }
+  if (timerPasosP2) { clearTimeout(timerPasosP2); timerPasosP2 = null; }
+}
+
+let pasoP1 = 0;
+function animarPasosP1() {
+  if (!introActiva || paginaActual !== 1) return;
+  if (pasoP1 < huellasP1.length) {
+    const h = huellasP1[pasoP1];
+    h.classList.add('visible', 'pisando');
+
+    setTimeout(() => {
+      if (h) h.classList.add('desvanecida');
+    }, 600);
+
+    pasoP1++;
+    timerPasosP1 = setTimeout(animarPasosP1, 190);
+  } else {
+    // Los pasos llegaron a la esquina inferior derecha.
+    // Pausa prolongada para leer y contemplar el título con tranquilidad:
+    timerAutoAvance = setTimeout(() => {
+      if (paginaActual === 1) {
+        irAPagina(2);
+      }
+    }, 2400);
+  }
+}
 
 let pasoP2 = 0;
 function animarPasosP2() {
-  if (!introActiva) return;
+  if (!introActiva || paginaActual !== 2) return;
   if (pasoP2 < huellasP2.length) {
     const h = huellasP2[pasoP2];
     h.classList.add('visible', 'pisando');
 
-    // Al pasar, la huella va desapareciendo suavemente
     setTimeout(() => {
       if (h) h.classList.add('desvanecida');
-    }, 360);
+    }, 650);
 
     pasoP2++;
-    setTimeout(animarPasosP2, 105);
+    timerPasosP2 = setTimeout(animarPasosP2, 200);
   } else {
-    // Los pasos llegaron a la esquina inferior derecha -> llevar a la siguiente página (Página 3)
-    setTimeout(irAPagina3, 200);
+    // Los pasos llegaron al final del recorrido.
+    // Pausa prolongada para leer con toda calma la pregunta y el texto juntos:
+    timerAutoAvance = setTimeout(() => {
+      if (paginaActual === 2) {
+        irAPagina(3);
+      }
+    }, 3600);
   }
 }
 
-function irAPagina3() {
-  if (!introActiva) return;
+function irAPagina(numPagina, esManual = false) {
+  limpiarTimersIntro();
+  actualizarKebab(numPagina);
 
-  // Desvanecer suavemente cualquier huella restante de P2
-  huellasP2.forEach(h => {
-    h.classList.add('desvanecida');
-  });
+  if (numPagina === 1) {
+    introActiva = true;
+    pantallaIntro.classList.remove('oculta');
+    pantallaIntro.style.display = 'flex';
+    pantallaIntro.style.pointerEvents = 'auto';
+    requestAnimationFrame(() => {
+      pantallaIntro.style.opacity = '1';
+    });
 
-  // Transición visual a Página 3
-  vistaP2.classList.remove('activa');
-  vistaP3P4.classList.add('activa');
+    vistaP3P4.classList.remove('activa');
+    vistaP2.classList.add('activa');
 
-  // Iniciar caminata de Página 3 y 4
-  setTimeout(animarPasosP3P4, 400);
-}
+    // Resetear huellas de ambas páginas
+    huellasP1.forEach(h => h.classList.remove('visible', 'pisando', 'desvanecida'));
+    huellasP2.forEach(h => h.classList.add('desvanecida'));
 
-let pasoP3 = 0;
-function animarPasosP3P4() {
-  if (!introActiva) return;
-  if (pasoP3 < huellasP3P4.length) {
-    const h = huellasP3P4[pasoP3];
-    h.classList.add('visible', 'pisando');
+    pasoP1 = 0;
+    timerPasosP1 = setTimeout(animarPasosP1, 350);
 
-    // Al pasar, la huella va desapareciendo suavemente
-    setTimeout(() => {
-      if (h) h.classList.add('desvanecida');
-    }, 620);
+  } else if (numPagina === 2) {
+    introActiva = true;
+    pantallaIntro.classList.remove('oculta');
+    pantallaIntro.style.display = 'flex';
+    pantallaIntro.style.pointerEvents = 'auto';
+    requestAnimationFrame(() => {
+      pantallaIntro.style.opacity = '1';
+    });
 
-    pasoP3++;
+    huellasP1.forEach(h => h.classList.add('desvanecida'));
 
-    // Al paso 5: la pregunta sube un poco y aparece el subtítulo (Página 4)
-    if (pasoP3 === 5) {
-      introPregunta.classList.add('subida');
-      introSubtitulo.classList.add('visible');
-    }
+    vistaP2.classList.remove('activa');
+    vistaP3P4.classList.add('activa');
 
-    setTimeout(animarPasosP3P4, 240);
-  } else {
-    // Los pasos llegaron a la esquina inferior derecha -> dan paso al mapa (Página 1)
-    setTimeout(cerrarIntro, 800);
+    huellasP2.forEach(h => h.classList.remove('visible', 'pisando', 'desvanecida'));
+
+    pasoP2 = 0;
+    timerPasosP2 = setTimeout(animarPasosP2, 350);
+
+  } else if (numPagina === 3) {
+    cerrarIntro();
   }
 }
 
 function cerrarIntro() {
-  if (!introActiva) return;
   introActiva = false;
+  limpiarTimersIntro();
+  actualizarKebab(3);
   pantallaIntro.style.pointerEvents = 'none';
   pantallaIntro.style.opacity = '0';
   setTimeout(() => {
     pantallaIntro.classList.add('oculta');
-  }, 650);
+  }, 700);
 }
 
-// Iniciar animación de Página 2 tras 200ms
-setTimeout(animarPasosP2, 200);
+// Iniciar secuencia en Página 1 tras 300ms
+setTimeout(() => irAPagina(1), 300);
 
-// Si el usuario hace clic o toca en cualquier momento, avanza inmediatamente al mapa
-pantallaIntro.addEventListener('click', cerrarIntro);
-pantallaIntro.addEventListener('touchstart', cerrarIntro, { passive: true });
+// Navegación interactiva mediante los botones del menú kebab
+puntosKebab.forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const pag = parseInt(btn.dataset.pagina, 10);
+    irAPagina(pag, true);
+  });
+});
+
+// Clic en el fondo de la pantalla de introducción: avanza a la siguiente página
+pantallaIntro.addEventListener('click', (e) => {
+  if (e.target.closest('#menu-kebab')) return;
+  if (paginaActual === 1) {
+    irAPagina(2, true);
+  } else if (paginaActual === 2) {
+    irAPagina(3, true);
+  }
+});
